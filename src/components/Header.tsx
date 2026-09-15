@@ -11,6 +11,7 @@ import {
   User,
   HeartHandshake,
   PhoneCall,
+  Activity,
 } from 'lucide-react';
 import { AudioSettings, UserProfile } from '../types';
 import { Logo } from './Logo';
@@ -23,6 +24,8 @@ interface HeaderProps {
   onSwitchRole: () => void;
   onLogout: () => void;
   missedDoseCount: number;
+  activeView: 'dashboard' | 'checkin';
+  onNavigate: (view: 'dashboard' | 'checkin') => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -33,6 +36,8 @@ export const Header: React.FC<HeaderProps> = ({
   onSwitchRole,
   onLogout,
   missedDoseCount,
+  activeView,
+  onNavigate,
 }) => {
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
 
@@ -101,6 +106,17 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
 
             {/* Switch Role Button */}
+            <button
+              type="button"
+              onClick={() => onNavigate(activeView === 'checkin' ? 'dashboard' : 'checkin')}
+              title={activeView === 'checkin' ? 'Return to dashboard' : 'Open health check-in'}
+              className="inline-flex items-center space-x-1.5 px-2 sm:px-3 py-1.5 rounded-xl bg-white hover:bg-amber-100 text-amber-950 text-xs font-bold border border-yellow-300 transition-all cursor-pointer shadow-2xs"
+            >
+              <Activity className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{activeView === 'checkin' ? 'Dashboard' : 'Health Check-In'}</span>
+              <span className="sm:hidden">{activeView === 'checkin' ? 'Home' : 'Check-in'}</span>
+            </button>
+
             <button
               type="button"
               id="btn-switch-role"

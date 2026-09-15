@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Medication,
   DoseLog,
@@ -31,9 +31,18 @@ import {
   TrendingUp,
   ShieldAlert,
   Pill,
+  MessageCircle,
 } from 'lucide-react';
 import { CalendarView } from './CalendarView';
 import { MedicationList } from './MedicationList';
+
+interface BackendAlert {
+  flag_type: string;
+  handoff_report: string;
+  created_at: string;
+}
+
+const ELDERLY_USER_ID = 'user-elderly-1';
 
 interface CaretakerViewProps {
   userProfile: UserProfile;
@@ -130,12 +139,64 @@ export const CaretakerView: React.FC<CaretakerViewProps> = ({
   const adherenceRate = totalDosesToday > 0 ? Math.round((takenDosesToday / totalDosesToday) * 100) : 100;
   const activeMissedAlerts = missedDoses.filter((m) => !dismissedAlertIds.includes(m.id));
 
+  const [backendAlerts, setBackendAlerts] = useState<BackendAlert[]>([]);
+
+  useEffect(() => {
+    const loadBackendAlerts = async () => {
+      try {
+        const response = await fetch(`http://localhost:5000/api/alerts/${ELDERLY_USER_ID}`);
+        if (!response.ok) return;
+        const alerts: BackendAlert[] = await response.json();
+        setBackendAlerts(alerts);
+      } catch {
+        // The medication dashboard remains usable if the API is unavailable.
+      }
+    };
+
+    void loadBackendAlerts();
+  }, []);
+
+  const latestBackendAlert = backendAlerts[0];
+
   // Custom nudge text state
   const [quickNudgeMessage, setQuickNudgeMessage] = useState('');
   const [isCustomNudgeOpen, setIsCustomNudgeOpen] = useState(false);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
+      {latestBackendAlert && (
+        <div className="bg-gradient-to-r from-red-500 via-orange-500 to-red-600 rounded-3xl p-1 shadow-xl shadow-red-500/20">
+          <div className="bg-white rounded-[22px] p-5 sm:p-6">
+            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0">
+                  <MessageCircle className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="bg-red-600 text-white text-[11px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full">
+                      New health alert
+                    </span>
+                    <span className="text-xs font-semibold text-red-700 uppercase">
+                      {latestBackendAlert.flag_type}
+                    </span>
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 mt-1">
+                    Message for {userProfile.elderlyName}'s caregiver
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {new Date(latestBackendAlert.created_at).toLocaleString()}
+                  </p>
+                  <p className="whitespace-pre-line text-sm sm:text-base leading-relaxed text-slate-800 mt-3">
+                    {latestBackendAlert.handoff_report}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ============================================================ */}
       {/* 🚨 CRITICAL REQUIREMENT: CARETAKER MISSED DOSE NOTIFICATION  */}
       {/* ============================================================ */}
