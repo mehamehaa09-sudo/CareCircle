@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { AudioSettings, UserProfile } from '../types';
 import { Logo } from './Logo';
+import { LanguageSwitcher } from './LanguageSwitcher';
 
 interface HeaderProps {
   onOpenAddModal: () => void;
@@ -124,7 +125,8 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
               )}
             </button>
-
+            {/* Language Switcher */}
+            <LanguageSwitcher />
             {/* Audio Settings Modal Trigger */}
             <button
               type="button"
