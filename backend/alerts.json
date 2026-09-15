@@ -1,0 +1,114 @@
+[
+  {
+    "user_id": "elder_lakshmi",
+    "flag_type": "anomaly",
+    "handoff_report": "🚨 elder_lakshmi — Today's Handoff\nSample anomaly flag for handoff\nCurrent medication status: True\nMedication changed 3 days ago\nFirst time this has been observed\nNeeds caregiver attention.",
+    "created_at": "2026-09-15T06:53:02.573335+00:00",
+    "resolved": false
+  },
+  {
+    "user_id": "elder_lakshmi",
+    "flag_type": "anomaly",
+    "handoff_report": "🚨 elder_lakshmi — Today's Handoff\nsystolic 145 is 5.3% above baseline 137.7 and mood is tired; medication was not taken and mood is tired\nCurrent medication status: True\nMedication changed 3 days ago\nFirst time this has been observed\nNeeds caregiver attention.",
+    "created_at": "2026-09-15T06:55:50.571419+00:00",
+    "resolved": false
+  },
+  {
+    "user_id": "elder_lakshmi",
+    "flag_type": "anomaly",
+    "handoff_report": "🚨 elder_lakshmi — Today's Handoff\nsystolic 145 is 5.3% above baseline 137.7 and mood is tired; medication was not taken and mood is tired\nCurrent medication status: True\nMedication changed 3 days ago\nFirst time this has been observed\nNeeds caregiver attention.",
+    "created_at": "2026-09-15T06:59:11.323632+00:00",
+    "resolved": false
+  },
+  {
+    "user_id": "elder_lakshmi",
+    "flag_type": "anomaly",
+    "handoff_report": "🚨 elder_lakshmi — Today's Handoff\nsystolic 145 is 5.3% above baseline 137.7 and mood is tired; medication was not taken and mood is tired\nCurrent medication status: True\nMedication changed 3 days ago\nFirst time this has been observed\nNeeds caregiver attention.",
+    "created_at": "2026-09-15T07:00:27.710630+00:00",
+    "resolved": false
+  },
+  {
+    "user_id": "elder_lakshmi",
+    "flag_type": "anomaly",
+    "handoff_report": "🚨 elder_lakshmi — Today's Handoff\nsystolic 145 is 5.3% above baseline 137.7 and mood is tired; medication was not taken and mood is tired\nMedication taken today: Yes\nMedication changed 3 days ago\nFirst time this has been observed\nNeeds caregiver attention.",
+    "created_at": "2026-09-15T07:02:52.617329+00:00",
+    "resolved": false
+  },
+  {
+    "user_id": "elder_lakshmi",
+    "flag_type": "anomaly",
+    "handoff_report": "🚨 elder_lakshmi — Today's Handoff\nsystolic 145 is 5.3% above baseline 137.7 and mood is tired; medication was not taken and mood is tired\nMedication taken today: No\nMedication changed 3 days ago\nFirst time this has been observed\nNeeds caregiver attention.",
+    "created_at": "2026-09-15T07:03:34.872154+00:00",
+    "resolved": false
+  },
+  {
+    "user_id": "elder_lakshmi",
+    "flag_type": "anomaly",
+    "handoff_report": "🚨 elder_lakshmi — Today's Handoff\nsystolic 145 is 5.3% above baseline 137.7 and mood is tired; medication was not taken and mood is tired\nMedication taken today: No\nMedication changed 3 days ago\nFirst time this has been observed\nNeeds caregiver attention.",
+    "created_at": "2026-09-15T07:10:06.647718+00:00",
+    "resolved": false
+  },
+  {
+    "user_id": "eval_trend",
+    "flag_type": "trend",
+    "handoff_report": "🚨 eval_trend — Today's Handoff\nBP has risen from 138 to 144 over the last 3 check-ins (4.3% increase).\nMedication taken today: Yes\nFirst time this has been observed\nNeeds caregiver attention.",
+    "created_at": "2026-09-15T07:10:09.204890+00:00",
+    "resolved": false
+  },
+  {
+    "user_id": "elder_lakshmi",
+    "flag_type": "anomaly",
+    "handoff_report": "🚨 elder_lakshmi — Today's Handoff\nmedication was not taken and mood is tired\nMedication taken today: No\nMedication changed 3 days ago\nFirst time this has been observed\nNeeds caregiver attention.",
+    "created_at": "2026-09-15T08:42:04.339354+00:00",
+    "resolved": false
+  },
+  {
+    "user_id": "elder_lakshmi",
+    "flag_type": "anomaly",
+    "handoff_report": "🚨 elder_lakshmi — Today's Handoff\nmedication was not taken and mood is tired\nMedication taken today: No\nMedication changed 3 days ago\nSimilar issue occurred before\nNeeds caregiver attention.",
+    "created_at": "2026-09-15T08:42:39.698121+00:00",
+    "resolved": false
+  },
+  {
+    "user_id": "user-elderly-1",
+    "flag_type": "anomaly",
+    "handoff_report": "🚨 user-elderly-1 — Today's Handoff\nsystolic 145 is 5.5% above baseline 137.4 and mood is tired; medication was not taken and mood is tired\nMedication taken today: No\nFirst time this has been observed\nNeeds caregiver attention.",
+    "created_at": "2026-09-15T09:07:57.429812+00:00",
+    "resolved": false
+  },
+  {
+    "user_id": "user-elderly-1",
+    "flag_type": "anomaly",
+    "handoff_report": "🚨 user-elderly-1 — Today's Handoff\nmedication was not taken and mood is tired\nMedication taken today: No\nSimilar issue occurred before\nNeeds caregiver attention.",
+    "created_at": "2026-09-15T09:08:18.667448+00:00",
+    "resolved": false
+  },
+  {
+    "user_id": "user-elderly-1",
+    "flag_type": "anomaly",
+    "handoff_report": "🚨 user-elderly-1 — Today's Handoff\nmedication was not taken and mood is dizzy\nMedication taken today: No\nSimilar issue occurred before\nNeeds caregiver attention.",
+    "created_at": "2026-09-15T09:11:30.965850+00:00",
+    "resolved": false
+  },
+  {
+    "user_id": "user-elderly-1",
+    "flag_type": "anomaly",
+    "handoff_report": "🚨 user-elderly-1 — Today's Handoff\nmedication was not taken and mood is tired\nMedication taken today: No\nSimilar issue occurred before\nNeeds caregiver attention.",
+    "created_at": "2026-09-15T09:13:29.749121+00:00",
+    "resolved": false
+  },
+  {
+    "user_id": "user-elderly-1",
+    "flag_type": "anomaly",
+    "handoff_report": "🚨 user-elderly-1 — Today's Handoff\nmedication was not taken and mood is tired\nMedication taken today: No\nSimilar issue occurred before\nNeeds caregiver attention.",
+    "created_at": "2026-09-15T09:14:41.738124+00:00",
+    "resolved": false
+  },
+  {
+    "user_id": "user-elderly-1",
+    "flag_type": "trend",
+    "handoff_report": "🚨 user-elderly-1 — Today's Handoff\nBP has risen from 145 to 150 over the last 3 check-ins (3.4% increase).\nMedication taken today: No\nSimilar issue occurred before\nNeeds caregiver attention.",
+    "created_at": "2026-09-15T09:19:25.201489+00:00",
+    "resolved": false
+  }
+]

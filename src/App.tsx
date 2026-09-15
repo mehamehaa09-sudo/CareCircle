@@ -45,6 +45,7 @@ import { AddMedicationModal } from './components/AddMedicationModal';
 import { AlarmAlertModal } from './components/AlarmAlertModal';
 import { AudioSettingsModal } from './components/AudioSettingsModal';
 import { CallModal } from './components/CallModal';
+import { HealthCheckinView } from './components/HealthCheckinView';
 
 export default function App() {
   // Authentication & Profile State
@@ -65,6 +66,7 @@ export default function App() {
 
   // Caretaker Tab selection
   const [caretakerTab, setCaretakerTab] = useState<'overview' | 'medications' | 'calendar'>('overview');
+  const [activeView, setActiveView] = useState<'dashboard' | 'checkin'>('dashboard');
 
   // Nudges & Alerts between Senior & Caretaker
   const [nudges, setNudges] = useState<CaretakerNudge[]>(() => loadNudges());
@@ -439,11 +441,15 @@ export default function App() {
         onSwitchRole={handleSwitchRole}
         onLogout={handleLogout}
         missedDoseCount={missedDoses.length}
+        activeView={activeView}
+        onNavigate={setActiveView}
       />
 
       {/* Main Content: Conditional Role-Based Views */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
-        {userProfile.role === 'elderly' ? (
+        {activeView === 'checkin' ? (
+          <HealthCheckinView />
+        ) : userProfile.role === 'elderly' ? (
           /* Elderly Person View */
           <ElderlyView
             userProfile={userProfile}
