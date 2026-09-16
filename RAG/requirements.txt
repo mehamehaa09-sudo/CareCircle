@@ -1,0 +1,7 @@
+requests
+pandas
+pypdf
+beautifulsoup4
+sentence-transformers
+rank-bm25
+numpy

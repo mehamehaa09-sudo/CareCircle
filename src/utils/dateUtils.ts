@@ -71,9 +71,9 @@ export function isMedicationActiveOnDate(med: Medication, targetDateISO: string)
 /**
  * Calculate the remaining days for a medication from today
  */
-export function getRemainingDays(med: Medication, todayISO: string): { text: string; isExpiringSoon: boolean; isExpired: boolean } {
+export function getRemainingDays(med: Medication, todayISO: string): { text: string; isExpiringSoon: boolean; isExpired: boolean; diffDays: number } {
   if (med.durationType === 'always') {
-    return { text: 'Ongoing (Always)', isExpiringSoon: false, isExpired: false };
+    return { text: 'Ongoing (Always)', isExpiringSoon: false, isExpired: false, diffDays: 9999 };
   }
 
   const end = med.endDate || (med.durationDays ? addDaysToISO(med.startDate, med.durationDays - 1) : med.startDate);
@@ -84,18 +84,19 @@ export function getRemainingDays(med: Medication, todayISO: string): { text: str
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
   if (diffDays < 0) {
-    return { text: `Completed ${Math.abs(diffDays)}d ago`, isExpiringSoon: false, isExpired: true };
+    return { text: `Completed ${Math.abs(diffDays)}d ago`, isExpiringSoon: false, isExpired: true, diffDays };
   }
   if (diffDays === 0) {
-    return { text: 'Last day today!', isExpiringSoon: true, isExpired: false };
+    return { text: 'Last day today!', isExpiringSoon: true, isExpired: false, diffDays: 0 };
   }
   if (diffDays === 1) {
-    return { text: '1 day left', isExpiringSoon: true, isExpired: false };
+    return { text: '1 day left', isExpiringSoon: true, isExpired: false, diffDays: 1 };
   }
   return {
     text: `${diffDays} days left`,
     isExpiringSoon: diffDays <= 3,
     isExpired: false,
+    diffDays,
   };
 }
 

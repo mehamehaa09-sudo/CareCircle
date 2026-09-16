@@ -1,0 +1,58 @@
+{
+  "lisinopril": {
+    "normalized_name": "lisinopril",
+    "rxcui": "29046"
+  },
+  "metformin": {
+    "normalized_name": "metformin",
+    "rxcui": "6809"
+  },
+  "amlodipine": {
+    "normalized_name": "amlodipine",
+    "rxcui": "17767"
+  },
+  "spironolactone": {
+    "normalized_name": "spironolactone",
+    "rxcui": "9997"
+  },
+  "atorvastatin": {
+    "normalized_name": "atorvastatin",
+    "rxcui": "83367"
+  },
+  "aspirin": {
+    "normalized_name": "aspirin",
+    "rxcui": "1191"
+  },
+  "simvastatin": {
+    "normalized_name": "simvastatin",
+    "rxcui": "36567"
+  },
+  "insulin": {
+    "normalized_name": "insulin, regular, human",
+    "rxcui": "253182"
+  },
+  "glimepiride": {
+    "normalized_name": "glimepiride",
+    "rxcui": "25789"
+  },
+  "verapamil": {
+    "normalized_name": "verapamil",
+    "rxcui": "11170"
+  },
+  "metoprolol": {
+    "normalized_name": "metoprolol",
+    "rxcui": "6918"
+  },
+  "losartan": {
+    "normalized_name": "losartan",
+    "rxcui": "52175"
+  },
+  "hydrochlorothiazide": {
+    "normalized_name": "hydrochlorothiazide",
+    "rxcui": "5487"
+  },
+  "propranolol": {
+    "normalized_name": "propranolol",
+    "rxcui": "8787"
+  }
+}

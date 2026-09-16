@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Volume2, VolumeX, Bell, Play, Check, AlertCircle } from 'lucide-react';
 import { AudioSettings, SoundTone } from '../types';
 import { playTone } from '../utils/audioAlarm';
+import { useLanguage } from '../context/LanguageContext';
 
 interface AudioSettingsModalProps {
   isOpen: boolean;
@@ -24,6 +25,7 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({
   audioSettings,
   onSaveAudioSettings,
 }) => {
+  const { t } = useLanguage();
   const [enabled, setEnabled] = useState(audioSettings.enabled);
   const [volume, setVolume] = useState(audioSettings.volume);
   const [selectedTone, setSelectedTone] = useState<SoundTone>(audioSettings.tone);
@@ -67,13 +69,13 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({
               <Volume2 className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-amber-950">Sound & Alarm Reminders</h2>
-              <p className="text-xs text-amber-900/80">Configure reminder sounds, tones and volume</p>
+              <h2 className="text-base font-bold text-amber-950">{t('audioSettingsTitle')}</h2>
+              <p className="text-xs text-amber-900/80">{t('soundAlertsDesc')}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            aria-label="Close settings"
+            aria-label={t('close')}
             className="p-1.5 rounded-lg text-amber-700 hover:text-amber-950 hover:bg-amber-100 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -89,8 +91,8 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({
                 {enabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
               </div>
               <div>
-                <h4 className="text-sm font-bold text-amber-950">Sound Alarm Triggers</h4>
-                <p className="text-xs text-amber-900/70">Play sound when medication time arrives</p>
+                <h4 className="text-sm font-bold text-amber-950">{t('soundAlerts')}</h4>
+                <p className="text-xs text-amber-900/70">{t('soundAlertsDesc')}</p>
               </div>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
@@ -107,7 +109,7 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({
           {/* Volume Slider */}
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs font-bold text-amber-950">
-              <span>Alarm Volume</span>
+              <span>{t('masterVolume')}</span>
               <span className="text-amber-700 font-extrabold">{Math.round(volume * 100)}%</span>
             </div>
             <input
@@ -125,7 +127,7 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({
           {/* Tones Selection */}
           <div className="space-y-2">
             <label className="block text-xs font-bold text-amber-950">
-              Alarm Sound Tone (Click play icon to preview)
+              {t('alarmTone')}
             </label>
             <div className="space-y-1.5">
               {TONES.map((tone) => {
@@ -158,7 +160,7 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({
                     <button
                       type="button"
                       onClick={() => handleTestTone(tone.id)}
-                      title={`Play ${tone.label} sample`}
+                      title={`Play ${tone.label}`}
                       className="p-1.5 rounded-lg bg-amber-100 hover:bg-amber-500 hover:text-amber-950 text-amber-900 transition-colors ml-2 cursor-pointer"
                     >
                       <Play className="w-3.5 h-3.5 fill-current" />
@@ -174,12 +176,12 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({
             <div className="flex items-center justify-between text-xs">
               <div className="flex items-center space-x-2">
                 <Bell className="w-4 h-4 text-amber-600" />
-                <span className="font-semibold text-amber-950">Browser Notifications</span>
+                <span className="font-semibold text-amber-950">{t('pushNotifications')}</span>
               </div>
               {notificationStatus === 'granted' ? (
                 <span className="text-emerald-700 font-bold flex items-center space-x-1">
                   <Check className="w-3.5 h-3.5" />
-                  <span>Enabled</span>
+                  <span>{t('notificationsActive')}</span>
                 </span>
               ) : (
                 <button
@@ -187,7 +189,7 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({
                   onClick={handleRequestNotification}
                   className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-950 font-bold border border-yellow-300 hover:bg-amber-200 cursor-pointer"
                 >
-                  Enable Notifications
+                  {t('enableNotifications')}
                 </button>
               )}
             </div>
@@ -200,13 +202,13 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({
             onClick={onClose}
             className="px-4 py-2 rounded-xl text-xs font-semibold text-amber-900 hover:bg-amber-100 transition-colors cursor-pointer"
           >
-            Cancel
+            {t('cancel')}
           </button>
           <button
             onClick={handleSave}
             className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-amber-950 text-xs font-bold shadow-xs transition-colors cursor-pointer"
           >
-            Save Sound Settings
+            {t('saveSettings')}
           </button>
         </div>
       </div>

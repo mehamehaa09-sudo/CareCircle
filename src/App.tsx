@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Medication,
   DoseLog,
@@ -7,7 +7,8 @@ import {
   AudioSettings,
   UserProfile,
   CaretakerNudge,
-  MissedDoseAlert,
+  WellnessCheckin,
+  WellnessPatternAlert,
 } from './types';
 import {
   loadMedications,
@@ -22,6 +23,8 @@ import {
   saveNudges,
   loadDismissedAlertIds,
   saveDismissedAlertIds,
+  loadWellnessCheckins,
+  saveWellnessCheckins,
   defaultElderlyProfile,
   defaultCaretakerProfile,
 } from './utils/storage';
@@ -29,66 +32,55 @@ import {
   formatDateToISO,
   isMedicationActiveOnDate,
   formatTime12h,
-  checkIsDoseTooEarly,
 } from './utils/dateUtils';
 import {
   startContinuousAlarm,
   stopContinuousAlarm,
-  playCaretakerAlertSound,
-  playSeniorNudgeSound,
+  playTone,
 } from './utils/audioAlarm';
 import { Header } from './components/Header';
-import { LoginView } from './components/LoginView';
-import { ElderlyView } from './components/ElderlyView';
-import { CaretakerView } from './components/CaretakerView';
+import { CalendarView } from './components/CalendarView';
+import { TodaySchedule } from './components/TodaySchedule';
+import { MedicationList } from './components/MedicationList';
 import { AddMedicationModal } from './components/AddMedicationModal';
 import { AlarmAlertModal } from './components/AlarmAlertModal';
 import { AudioSettingsModal } from './components/AudioSettingsModal';
+import { LoginView } from './components/LoginView';
+import { ElderlyView } from './components/ElderlyView';
+import { CaretakerView } from './components/CaretakerView';
 import { CallModal } from './components/CallModal';
+import { VoiceAssistantModal } from './components/VoiceAssistantModal';
+import { HealthQuestionView } from './components/HealthQuestionView';
+import { PrescriptionCheckerView } from './components/PrescriptionCheckerView';
 
 export default function App() {
-  // Authentication & Profile State
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(() => {
-    const saved = loadCurrentProfile();
-    // Default to Elderly profile initially so the app is instantly usable, or null if logged out
-    return saved || defaultElderlyProfile;
-  });
-
-  // Core Medication State
   const [medications, setMedications] = useState<Medication[]>(() => loadMedications());
   const [doseLogs, setDoseLogs] = useState<DoseLog[]>(() => loadDoseLogs());
   const [audioSettings, setAudioSettings] = useState<AudioSettings>(() => loadAudioSettings());
-
-  // Date Selection
-  const todayISO = formatDateToISO(new Date());
-  const [selectedDateISO, setSelectedDateISO] = useState<string>(todayISO);
-
-  // Caretaker Tab selection
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(() => loadCurrentProfile());
+  const [nudges, setNudges] = useState<CaretakerNudge[]>(() => loadNudges());
+  const [wellnessCheckins, setWellnessCheckins] = useState<WellnessCheckin[]>(() => loadWellnessCheckins());
+  const [dismissedAlertIds, setDismissedAlertIds] = useState<string[]>(() => loadDismissedAlertIds());
+  const [isCallModalOpen, setIsCallModalOpen] = useState(false);
+  const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false);
   const [caretakerTab, setCaretakerTab] = useState<'overview' | 'medications' | 'calendar'>('overview');
 
-  // Nudges & Alerts between Senior & Caretaker
-  const [nudges, setNudges] = useState<CaretakerNudge[]>(() => loadNudges());
-  const [dismissedAlertIds, setDismissedAlertIds] = useState<string[]>(() => loadDismissedAlertIds());
+  const todayISO = formatDateToISO(new Date());
+  const [selectedDateISO, setSelectedDateISO] = useState<string>(todayISO);
+  const [activeView, setActiveView] = useState<'dashboard' | 'health-question' | 'prescription-checker'>('dashboard');
 
-  // Modals
+  // Modals & Alarms
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isAudioSettingsOpen, setIsAudioSettingsOpen] = useState(false);
-  const [isCallModalOpen, setIsCallModalOpen] = useState(false);
   const [activeAlarm, setActiveAlarm] = useState<ActiveAlarm | null>(null);
 
   // Snoozed alarms tracking
   const [snoozedAlarms, setSnoozedAlarms] = useState<Array<{ alarm: ActiveAlarm; fireAt: number }>>([]);
 
-  // Fired minutes prevention tracker
+  // To prevent repeated triggers while still allowing multiple doses in one minute
   const firedMinutesRef = useRef<Set<string>>(new Set());
-  // Fired caretaker missed alert tracker
-  const alertedMissedDoseKeysRef = useRef<Set<string>>(new Set());
 
-  // Persist State Changes
-  useEffect(() => {
-    saveCurrentProfile(userProfile);
-  }, [userProfile]);
-
+  // Save changes to storage
   useEffect(() => {
     saveMedications(medications);
   }, [medications]);
@@ -102,6 +94,10 @@ export default function App() {
   }, [audioSettings]);
 
   useEffect(() => {
+    saveCurrentProfile(userProfile);
+  }, [userProfile]);
+
+  useEffect(() => {
     saveNudges(nudges);
   }, [nudges]);
 
@@ -109,60 +105,96 @@ export default function App() {
     saveDismissedAlertIds(dismissedAlertIds);
   }, [dismissedAlertIds]);
 
-  // Compute Missed Doses for Caretaker Notification
-  const getActiveMissedDoses = useCallback((): MissedDoseAlert[] => {
-    const now = new Date();
-    const currentHours = String(now.getHours()).padStart(2, '0');
-    const currentMinutes = String(now.getMinutes()).padStart(2, '0');
-    const currentTimeStr = `${currentHours}:${currentMinutes}`;
-
-    const activeToday = medications.filter((m) => isMedicationActiveOnDate(m, todayISO));
-    const missedList: MissedDoseAlert[] = [];
-
-    activeToday.forEach((med) => {
-      med.times.forEach((t) => {
-        const doseKey = `${med.id}_${todayISO}_${t.time}`;
-        const log = doseLogs.find((l) => l.id === doseKey);
-        const status = log ? log.status : 'pending';
-
-        // Dose is missed if time has passed and senior hasn't marked it taken
-        if (status === 'pending' && t.time < currentTimeStr) {
-          const alertId = `missed_${doseKey}`;
-          if (!dismissedAlertIds.includes(alertId)) {
-            missedList.push({
-              id: alertId,
-              medicationId: med.id,
-              medicationName: med.name,
-              dosage: med.dosage,
-              scheduledTime: t.time,
-              label: t.label,
-              scheduledLabel: t.label,
-              date: todayISO,
-              detectedAt: Date.now(),
-              elderlyName: userProfile?.elderlyName || 'Grandpa Robert',
-              dismissed: false,
-            });
-          }
-        }
-      });
-    });
-
-    return missedList;
-  }, [medications, todayISO, doseLogs, dismissedAlertIds, userProfile]);
-
-  const missedDoses = getActiveMissedDoses();
-
-  // Watchdog Loop: Handles alarms for Senior AND Missed Dose Alerts for Caretaker
   useEffect(() => {
-    const checkLoop = () => {
+    saveWellnessCheckins(wellnessCheckins);
+  }, [wellnessCheckins]);
+
+  const handleLogin = (profile: UserProfile) => {
+    setUserProfile(profile);
+    setSelectedDateISO(formatDateToISO(new Date()));
+  };
+
+  const handleSwitchRole = () => {
+    setUserProfile((prev) => {
+      const current = prev ?? defaultElderlyProfile;
+      return current.role === 'elderly' ? defaultCaretakerProfile : defaultElderlyProfile;
+    });
+  };
+
+  const handleLogout = () => {
+    setUserProfile(null);
+    setIsCallModalOpen(false);
+    setIsVoiceAssistantOpen(false);
+  };
+
+  const handleSendNudge = (medicationName?: string, customMessage?: string) => {
+    const senderName = userProfile?.caretakerName || 'Caregiver';
+    const message = customMessage || `Please check on ${medicationName || 'your medication'} soon.`;
+    setNudges((prev) => [{
+      id: `nudge_${Date.now()}`,
+      senderName,
+      message,
+      timestamp: Date.now(),
+      medicationName,
+      acknowledged: false,
+    }, ...prev]);
+  };
+
+  const handleDismissNudge = (id: string) => {
+    setNudges((prev) => prev.filter((nudge) => nudge.id !== id));
+  };
+
+  const handleWellnessCheckin = (checkin: WellnessCheckin) => {
+    setWellnessCheckins((prev) => [checkin, ...prev]);
+  };
+
+  const wellnessAlerts = (() => {
+    const symptomMap = new Map<string, { id: string; symptom: string; occurrences: number; firstReportedOn: string; latestReportedOn: string; severity: 'low' | 'medium' | 'high' }>();
+
+    for (const checkin of wellnessCheckins) {
+      if (!checkin.symptoms?.length) continue;
+      for (const symptom of checkin.symptoms) {
+        const key = symptom.toLowerCase();
+        const existing = symptomMap.get(key);
+        const hitDate = checkin.date || formatDateToISO(new Date(checkin.createdAt));
+        if (existing) {
+          existing.occurrences += 1;
+          existing.latestReportedOn = hitDate;
+        } else {
+          symptomMap.set(key, {
+            id: `alert_${key}`,
+            symptom,
+            occurrences: 1,
+            firstReportedOn: hitDate,
+            latestReportedOn: hitDate,
+            severity: 'medium',
+          });
+        }
+      }
+    }
+
+    return Array.from(symptomMap.values())
+      .filter((alert) => alert.occurrences >= 2)
+      .map((alert) => ({
+        id: alert.id,
+        symptom: alert.symptom,
+        occurrences: alert.occurrences,
+        firstReportedOn: alert.firstReportedOn,
+        latestReportedOn: alert.latestReportedOn,
+        severity: alert.severity,
+      }));
+  })();
+
+  // Medication Dose Alarm Monitoring Loop
+  useEffect(() => {
+    const checkAlarms = () => {
       const now = new Date();
       const currentHours = String(now.getHours()).padStart(2, '0');
       const currentMinutes = String(now.getMinutes()).padStart(2, '0');
-      const currentMinuteKey = `${currentHours}:${currentMinutes}`;
       const nowTimestamp = now.getTime();
       const currentTodayISO = formatDateToISO(now);
 
-      // 1. Check snoozed alarms
+      // Check snoozed alarms first
       const dueSnoozed = snoozedAlarms.filter((s) => nowTimestamp >= s.fireAt);
       if (dueSnoozed.length > 0) {
         const nextSnooze = dueSnoozed[0];
@@ -171,73 +203,50 @@ export default function App() {
         return;
       }
 
-      // 2. Check scheduled medication alarms for Senior
-      if (!firedMinutesRef.current.has(currentMinuteKey)) {
-        const activeToday = medications.filter((m) => isMedicationActiveOnDate(m, currentTodayISO));
+      // Check scheduled medications for today
+      const activeToday = medications.filter((m) => isMedicationActiveOnDate(m, currentTodayISO));
 
-        for (const med of activeToday) {
-          for (const t of med.times) {
-            if (t.time === currentMinuteKey) {
-              const doseId = `${med.id}_${currentTodayISO}_${t.time}`;
-              const log = doseLogs.find((l) => l.id === doseId);
+      for (const med of activeToday) {
+        for (const t of med.times) {
+          if (t.time === `${currentHours}:${currentMinutes}`) {
+            // Check if dose has already been taken
+            const doseId = `${med.id}_${currentTodayISO}_${t.time}`;
+            const log = doseLogs.find((l) => l.id === doseId);
 
-              if (!log || log.status === 'pending') {
-                firedMinutesRef.current.add(currentMinuteKey);
+            if ((!log || log.status === 'pending') && !firedMinutesRef.current.has(doseId)) {
+              firedMinutesRef.current.add(doseId);
 
-                const newAlarm: ActiveAlarm = {
-                  id: `alarm_${Date.now()}`,
-                  medicationId: med.id,
-                  medicationName: med.name,
-                  dosage: med.dosage,
-                  instructions: med.instructions,
-                  time: t.time,
-                  label: t.label,
-                  color: med.color,
-                  triggeredAt: Date.now(),
-                };
+              const newAlarm: ActiveAlarm = {
+                id: `alarm_${Date.now()}`,
+                medicationId: med.id,
+                medicationName: med.name,
+                dosage: med.dosage,
+                instructions: med.instructions,
+                time: t.time,
+                label: t.label,
+                color: med.color,
+                triggeredAt: Date.now(),
+              };
 
-                triggerAlarmModal(newAlarm);
-                return;
-              }
-            }
-          }
-        }
-      }
-
-      // 3. Caretaker Notification Check:
-      // If user is currently in Caretaker role, notify immediately when a missed dose is detected!
-      if (userProfile?.role === 'caretaker') {
-        const currentMissed = getActiveMissedDoses();
-        for (const alert of currentMissed) {
-          if (!alertedMissedDoseKeysRef.current.has(alert.id)) {
-            alertedMissedDoseKeysRef.current.add(alert.id);
-
-            // Play specialized Caretaker audio alert
-            if (audioSettings.enabled) {
-              playCaretakerAlertSound();
-            }
-
-            // Browser notification
-            if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-              try {
-                new Notification(`⚠️ CareCircle Alert: Missed Dose!`, {
-                  body: `${alert.elderlyName} has NOT taken ${alert.medicationName} (${alert.dosage}) scheduled for ${formatTime12h(alert.scheduledTime)}.`,
-                  icon: '/favicon.ico',
-                });
-              } catch (e) {
-                console.error('Notification error:', e);
-              }
+              triggerAlarmModal(newAlarm);
+              return;
             }
           }
         }
       }
     };
 
-    const interval = setInterval(checkLoop, 2500);
+    const interval = setInterval(checkAlarms, 2000);
     return () => clearInterval(interval);
-  }, [medications, doseLogs, snoozedAlarms, audioSettings, userProfile, getActiveMissedDoses]);
+  }, [medications, doseLogs, snoozedAlarms, audioSettings]);
 
-  // Trigger Senior Alarm Modal & Audio
+  // Clean old fired minutes at midnight or after 60 records
+  useEffect(() => {
+    if (firedMinutesRef.current.size > 120) {
+      firedMinutesRef.current.clear();
+    }
+  }, []);
+
   const triggerAlarmModal = (alarm: ActiveAlarm) => {
     setActiveAlarm(alarm);
 
@@ -245,6 +254,7 @@ export default function App() {
       startContinuousAlarm(audioSettings.tone, audioSettings.volume);
     }
 
+    // Trigger browser notification if supported and granted
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       try {
         new Notification(`Time for Medicine: ${alarm.medicationName}`, {
@@ -257,72 +267,48 @@ export default function App() {
     }
   };
 
-  // Simulate Missed Dose (for testing caretaker notification instantly)
-  const handleSimulateMissedDose = () => {
-    const med = medications[0];
-    if (!med) return;
-
-    // Set a dose earlier in the day
-    const pastTime = '08:00';
-    const doseKey = `${med.id}_${todayISO}_${pastTime}`;
-
-    // Ensure it is pending in doseLogs
-    setDoseLogs((prev) => {
-      const filtered = prev.filter((l) => l.id !== doseKey);
-      return [
-        ...filtered,
-        {
-          id: doseKey,
-          medicationId: med.id,
-          date: todayISO,
-          time: pastTime,
-          label: 'Morning',
-          status: 'pending',
-        },
-      ];
-    });
-
-    // Remove from dismissed alert list if it was dismissed before
-    const alertId = `missed_${doseKey}`;
-    setDismissedAlertIds((prev) => prev.filter((id) => id !== alertId));
-    alertedMissedDoseKeysRef.current.delete(alertId);
-
-    // Play Caretaker alert sound
-    if (audioSettings.enabled) {
-      playCaretakerAlertSound();
-    }
-  };
-
-  // Caretaker sending a Nudge to the Senior
-  const handleSendNudge = (medicationName?: string, customMessage?: string) => {
-    const newNudge: CaretakerNudge = {
-      id: `nudge_${Date.now()}`,
-      senderName: userProfile?.caretakerName || 'Sarah (Caretaker)',
-      targetName: userProfile?.elderlyName || 'Grandpa Robert',
-      message:
-        customMessage ||
-        (medicationName
-          ? `Gentle reminder to take your ${medicationName} dose with a glass of water.`
-          : 'Checking in on you! Please take your scheduled medicine today.'),
-      sentAt: Date.now(),
-      medicationName,
-      acknowledged: false,
+  // Test Alarm Sound manual trigger
+  const handleTriggerTestAlarm = () => {
+    const med = medications[0] || {
+      id: 'test-med',
+      name: 'Dolo 650 (Test Sample)',
+      dosage: '650 mg',
+      instructions: 'after_food',
+      color: '#3b82f6',
     };
 
-    setNudges((prev) => [newNudge, ...prev]);
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2, '0');
+    const m = String(now.getMinutes()).padStart(2, '0');
 
-    // Play senior nudge chime
-    if (audioSettings.enabled) {
-      playSeniorNudgeSound();
-    }
+    const testAlarm: ActiveAlarm = {
+      id: `test_alarm_${Date.now()}`,
+      medicationId: med.id,
+      medicationName: med.name,
+      dosage: med.dosage,
+      instructions: med.instructions,
+      time: `${h}:${m}`,
+      label: 'Scheduled Time',
+      color: med.color || '#3b82f6',
+      triggeredAt: Date.now(),
+    };
+
+    triggerAlarmModal(testAlarm);
   };
 
-  const handleDismissNudge = (id: string) => {
-    setNudges((prev) => prev.filter((n) => n.id !== id));
-  };
-
-  const handleDismissAlertId = (alertId: string) => {
-    setDismissedAlertIds((prev) => [...prev, alertId]);
+  const handleTriggerAlarmForMed = (med: Medication, time: string, label: string) => {
+    const alarm: ActiveAlarm = {
+      id: `alarm_med_${Date.now()}`,
+      medicationId: med.id,
+      medicationName: med.name,
+      dosage: med.dosage,
+      instructions: med.instructions,
+      time,
+      label,
+      color: med.color,
+      triggeredAt: Date.now(),
+    };
+    triggerAlarmModal(alarm);
   };
 
   // Medication handlers
@@ -332,6 +318,7 @@ export default function App() {
 
   const handleRemoveMedication = (id: string) => {
     setMedications((prev) => prev.filter((m) => m.id !== id));
+    // Also remove from any active alarm if current
     if (activeAlarm?.medicationId === id) {
       stopContinuousAlarm();
       setActiveAlarm(null);
@@ -346,15 +333,6 @@ export default function App() {
     label: string,
     status: DoseStatus
   ) => {
-    // Safety requirement: For elderly users, prevent marking a dose as taken more than 15 mins before due time
-    if (status === 'taken' && userProfile?.role === 'elderly') {
-      const earlyCheck = checkIsDoseTooEarly(dateISO, time);
-      if (earlyCheck.isTooEarly) {
-        console.warn(`[CareCircle] Prevented early dose logging: ${earlyCheck.reason}`);
-        return;
-      }
-    }
-
     const doseId = `${medicationId}_${dateISO}_${time}`;
 
     setDoseLogs((prev) => {
@@ -378,7 +356,7 @@ export default function App() {
       }
     });
 
-    // If active alarm is for this dose, stop it
+    // If active alarm is for this dose, close it
     if (activeAlarm && activeAlarm.medicationId === medicationId && activeAlarm.time === time) {
       stopContinuousAlarm();
       setActiveAlarm(null);
@@ -386,7 +364,7 @@ export default function App() {
   };
 
   const handleTakeNowFromAlarm = (medicationId: string, time: string, label: string) => {
-    handleUpdateDoseStatus(medicationId, todayISO, time, label, 'taken');
+    handleUpdateDoseStatus(medicationId, formatDateToISO(new Date()), time, label, 'taken');
     stopContinuousAlarm();
     setActiveAlarm(null);
   };
@@ -403,82 +381,75 @@ export default function App() {
     setActiveAlarm(null);
   };
 
-  // Profile management & Role switching
-  const handleLogin = (profile: UserProfile) => {
-    setUserProfile(profile);
-  };
-
-  const handleSwitchRole = () => {
-    if (!userProfile) return;
-    const newRole = userProfile.role === 'elderly' ? 'caretaker' : 'elderly';
-    const updated: UserProfile = {
-      ...userProfile,
-      role: newRole,
-      name: newRole === 'elderly' ? userProfile.elderlyName : userProfile.caretakerName,
-    };
-    setUserProfile(updated);
-  };
-
-  const handleLogout = () => {
-    setUserProfile(null);
-  };
-
-  // If no user is logged in, show the Login / Role Selection Screen
   if (!userProfile) {
     return <LoginView onLogin={handleLogin} />;
   }
 
-  return (
-    <div className="min-h-screen bg-amber-50/40 text-amber-950 flex flex-col font-['Plus_Jakarta_Sans',sans-serif]">
-      {/* Top Application Header */}
+  const innerApp = (
+    <div className="min-h-screen bg-slate-100/70 text-slate-900 flex flex-col font-['Plus_Jakarta_Sans',sans-serif]">
       <Header
         onOpenAddModal={() => setIsAddModalOpen(true)}
         onOpenAudioSettings={() => setIsAudioSettingsOpen(true)}
+        onTriggerTestAlarm={handleTriggerTestAlarm}
         audioSettings={audioSettings}
         userProfile={userProfile}
         onSwitchRole={handleSwitchRole}
         onLogout={handleLogout}
-        missedDoseCount={missedDoses.length}
+        missedDoseCount={0}
+        onOpenVoiceAssistant={() => setIsVoiceAssistantOpen(true)}
+        onOpenHealthQuestion={() => setIsVoiceAssistantOpen(true)}
+        onOpenPrescriptionChecker={() => setIsAddModalOpen(true)}
+        activeView={activeView}
+        onNavigate={setActiveView}
       />
 
-      {/* Main Content: Conditional Role-Based Views */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
-        {userProfile.role === 'elderly' ? (
-          /* Elderly Person View */
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {activeView === 'health-question' ? (
+          <HealthQuestionView />
+        ) : activeView === 'prescription-checker' ? (
+          <PrescriptionCheckerView />
+        ) : userProfile.role === 'elderly' ? (
           <ElderlyView
             userProfile={userProfile}
             medications={medications}
             doseLogs={doseLogs}
             selectedDateISO={selectedDateISO}
-            onSelectDate={(iso) => setSelectedDateISO(iso)}
+            onSelectDate={setSelectedDateISO}
             onUpdateDoseStatus={handleUpdateDoseStatus}
+            onTriggerAlarmForMed={handleTriggerAlarmForMed}
+            onRemoveMedication={handleRemoveMedication}
             nudges={nudges}
             onDismissNudge={handleDismissNudge}
             onOpenCallModal={() => setIsCallModalOpen(true)}
+            onOpenVoiceAssistant={() => setIsVoiceAssistantOpen(true)}
+            wellnessCheckins={wellnessCheckins}
+            onWellnessCheckin={handleWellnessCheckin}
           />
         ) : (
-          /* Caretaker View */
           <CaretakerView
             userProfile={userProfile}
             medications={medications}
             doseLogs={doseLogs}
             selectedDateISO={selectedDateISO}
-            onSelectDate={(iso) => setSelectedDateISO(iso)}
+            onSelectDate={setSelectedDateISO}
             onUpdateDoseStatus={handleUpdateDoseStatus}
             onOpenAddModal={() => setIsAddModalOpen(true)}
             onRemoveMedication={handleRemoveMedication}
+            onTriggerAlarmForMed={handleTriggerAlarmForMed}
             onSendNudge={handleSendNudge}
             onOpenCallModal={() => setIsCallModalOpen(true)}
-            onSimulateMissedDose={handleSimulateMissedDose}
+            onOpenVoiceAssistant={() => setIsVoiceAssistantOpen(true)}
+            onSimulateMissedDose={handleTriggerTestAlarm}
             dismissedAlertIds={dismissedAlertIds}
-            onDismissAlertId={handleDismissAlertId}
+            onDismissAlertId={(id) => setDismissedAlertIds((prev) => [...prev, id])}
             caretakerTab={caretakerTab}
             setCaretakerTab={setCaretakerTab}
+            wellnessCheckins={wellnessCheckins}
+            wellnessAlerts={wellnessAlerts}
           />
         )}
       </main>
 
-      {/* Active Alarm / Reminder Alert Modal Overlay */}
       <AlarmAlertModal
         alarm={activeAlarm}
         onDismiss={handleDismissAlarm}
@@ -486,14 +457,12 @@ export default function App() {
         onSnooze={handleSnoozeAlarm}
       />
 
-      {/* Add Medication Dialog Modal */}
       <AddMedicationModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onAddMedication={handleAddMedication}
       />
 
-      {/* Sound Settings & Chime Tone Selector Modal */}
       <AudioSettingsModal
         isOpen={isAudioSettingsOpen}
         onClose={() => setIsAudioSettingsOpen(false)}
@@ -501,12 +470,28 @@ export default function App() {
         onSaveAudioSettings={(settings) => setAudioSettings(settings)}
       />
 
-      {/* Direct Call Simulation Modal */}
       <CallModal
         isOpen={isCallModalOpen}
         onClose={() => setIsCallModalOpen(false)}
         userProfile={userProfile}
       />
+
+      <VoiceAssistantModal
+        isOpen={isVoiceAssistantOpen}
+        onClose={() => setIsVoiceAssistantOpen(false)}
+        userProfile={userProfile}
+        medications={medications}
+        todayDoses={doseLogs.filter((log) => log.date === todayISO)}
+        onUpdateDoseStatus={(doseId, status) => {
+          const target = doseLogs.find((log) => log.id === doseId);
+          if (target) {
+            handleUpdateDoseStatus(target.medicationId, target.date, target.time, target.label, status);
+          }
+        }}
+        onInitiateCall={() => setIsCallModalOpen(true)}
+      />
     </div>
   );
+
+  return innerApp;
 }

@@ -1,9 +1,9 @@
 import React, { useEffect } from 'react';
 import { Bell, Check, Clock, Volume2, VolumeX, AlertTriangle, Pill } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { ActiveAlarm } from '../types';
-import { formatTime12h } from '../utils/dateUtils';
+import { ActiveAlarm, FoodInstruction } from '../types';
 import { stopContinuousAlarm } from '../utils/audioAlarm';
+import { useLanguage } from '../context/LanguageContext';
 
 interface AlarmAlertModalProps {
   alarm: ActiveAlarm | null;
@@ -18,6 +18,7 @@ export const AlarmAlertModal: React.FC<AlarmAlertModalProps> = ({
   onTakeNow,
   onSnooze,
 }) => {
+  const { t, formatLocalizedTime } = useLanguage();
   if (!alarm) return null;
 
   const handleTake = () => {
@@ -42,19 +43,31 @@ export const AlarmAlertModal: React.FC<AlarmAlertModalProps> = ({
     onDismiss();
   };
 
-  const getFoodInstructionText = (inst: string) => {
+  const getFoodInstructionText = (inst: FoodInstruction | string): string => {
     switch (inst) {
       case 'after_food':
-        return 'Take after food / meal';
+        return t('afterFood');
       case 'before_food':
-        return 'Take before meal (Empty stomach)';
+        return t('beforeFood');
       case 'with_food':
-        return 'Take with food';
+        return t('withFood');
       case 'empty_stomach':
-        return 'Take on empty stomach';
+        return t('emptyStomach');
+      case 'anytime':
+        return t('anytime');
       default:
-        return 'Take with a glass of water';
+        return t('foodInstruction');
     }
+  };
+
+  const getScheduleLabelName = (label: string): string => {
+    const l = label.toLowerCase();
+    if (l.includes('morning')) return t('morning');
+    if (l.includes('afternoon')) return t('afternoon');
+    if (l.includes('evening')) return t('evening');
+    if (l.includes('night')) return t('night');
+    if (l.includes('custom')) return t('custom');
+    return label;
   };
 
   return (
@@ -67,29 +80,29 @@ export const AlarmAlertModal: React.FC<AlarmAlertModalProps> = ({
           </div>
 
           <div className="inline-block px-3 py-1 rounded-full bg-black/20 text-xs font-bold uppercase tracking-wider mb-2">
-            Medication Reminder Alarm
+            CareCircle • {t('medicationAlarm')}
           </div>
-          <h2 className="text-2xl font-black tracking-tight">Time for your Medicine!</h2>
-          <p className="text-xs text-white/80 mt-1">
-            Audio alarm is currently ringing
+          <h2 className="text-2xl font-black tracking-tight">{t('alarmTitle')}</h2>
+          <p className="text-xs text-white/90 mt-1">
+            {t('alarmRinging')}
           </p>
         </div>
 
         {/* Medicine Details */}
         <div className="p-6 space-y-4">
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/90 text-center space-y-2">
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              {alarm.label} Dose • {formatTime12h(alarm.time)}
+            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              {getScheduleLabelName(alarm.label)} • {formatLocalizedTime(alarm.time)}
             </div>
             <h3 className="text-2xl font-bold text-slate-900 tracking-tight">
               {alarm.medicationName}
             </h3>
-            <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-lg bg-blue-50 text-blue-800 border border-blue-200 text-xs font-bold">
-              <Pill className="w-3.5 h-3.5" />
-              <span>Dosage: {alarm.dosage}</span>
+            <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-lg bg-amber-100 text-amber-950 border border-amber-300 text-xs font-bold">
+              <Pill className="w-3.5 h-3.5 text-amber-700" />
+              <span>{t('dosage')}: {alarm.dosage}</span>
             </div>
 
-            <div className="text-xs font-semibold text-amber-800 bg-amber-50 py-1.5 px-3 rounded-lg border border-amber-200">
+            <div className="text-xs font-semibold text-amber-900 bg-amber-50 py-1.5 px-3 rounded-lg border border-amber-200">
               💡 {getFoodInstructionText(alarm.instructions)}
             </div>
           </div>
@@ -100,10 +113,10 @@ export const AlarmAlertModal: React.FC<AlarmAlertModalProps> = ({
             <button
               id="btn-alarm-take-now"
               onClick={handleTake}
-              className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-base shadow-md flex items-center justify-center space-x-2 transition-all"
+              className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-base shadow-md flex items-center justify-center space-x-2 transition-all cursor-pointer"
             >
               <Check className="w-5 h-5" />
-              <span>Take Medicine Now</span>
+              <span>{t('takeMedicineNow')}</span>
             </button>
 
             {/* Snooze & Dismiss Row */}
@@ -111,19 +124,19 @@ export const AlarmAlertModal: React.FC<AlarmAlertModalProps> = ({
               <button
                 id="btn-alarm-snooze"
                 onClick={handleSnooze}
-                className="py-2.5 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-semibold text-xs flex items-center justify-center space-x-1.5 transition-colors"
+                className="py-2.5 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-semibold text-xs flex items-center justify-center space-x-1.5 transition-colors cursor-pointer"
               >
                 <Clock className="w-4 h-4" />
-                <span>Snooze 5 mins</span>
+                <span>{t('snooze5Min')}</span>
               </button>
 
               <button
                 id="btn-alarm-dismiss"
                 onClick={handleDismiss}
-                className="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 font-semibold text-xs flex items-center justify-center space-x-1.5 transition-colors"
+                className="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 font-semibold text-xs flex items-center justify-center space-x-1.5 transition-colors cursor-pointer"
               >
                 <VolumeX className="w-4 h-4" />
-                <span>Stop Alarm</span>
+                <span>{t('stopAlarm')}</span>
               </button>
             </div>
           </div>

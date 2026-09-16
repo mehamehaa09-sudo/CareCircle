@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { X, Plus, Trash2, Clock, Calendar, Pill, Check, Sparkles } from 'lucide-react';
+import { X, Plus, Trash2, Clock, Calendar, Pill, Check, Sparkles, ScanText } from 'lucide-react';
 import { Medication, MedicineForm, FoodInstruction, DurationType, MedicationScheduleTime } from '../types';
-import { formatDateToISO, addDaysToISO, formatTime12h, formatHumanDate } from '../utils/dateUtils';
+import { formatDateToISO, addDaysToISO } from '../utils/dateUtils';
+import { useLanguage } from '../context/LanguageContext';
+import { PrescriptionScannerModal } from './PrescriptionScannerModal';
 
 interface AddMedicationModalProps {
   isOpen: boolean;
@@ -24,6 +26,7 @@ export const AddMedicationModal: React.FC<AddMedicationModalProps> = ({
   onClose,
   onAddMedication,
 }) => {
+  const { t, formatLocalizedDate, formatLocalizedTime } = useLanguage();
   const todayISO = formatDateToISO(new Date());
 
   const [name, setName] = useState('');
@@ -34,6 +37,7 @@ export const AddMedicationModal: React.FC<AddMedicationModalProps> = ({
   const [durationDays, setDurationDays] = useState<number>(30); // Default 30 days as user requested
   const [startDate, setStartDate] = useState<string>(todayISO);
   const [notes, setNotes] = useState('');
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [times, setTimes] = useState<MedicationScheduleTime[]>([
     { id: 't1', time: '08:00', label: 'Morning' },
     { id: 't2', time: '21:00', label: 'Night' },
@@ -129,8 +133,19 @@ export const AddMedicationModal: React.FC<AddMedicationModalProps> = ({
     onClose();
   };
 
+  const getScheduleLabelName = (label: string): string => {
+    const l = label.toLowerCase();
+    if (l.includes('morning')) return t('morning');
+    if (l.includes('afternoon')) return t('afternoon');
+    if (l.includes('evening')) return t('evening');
+    if (l.includes('night')) return t('night');
+    if (l.includes('custom')) return t('custom');
+    return label;
+  };
+
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-amber-950/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+    <>
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-amber-950/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
       <div className="bg-white rounded-3xl max-w-xl w-full max-h-[92vh] flex flex-col shadow-2xl border-2 border-yellow-300 overflow-hidden animate-in fade-in duration-200">
         {/* Modal Header */}
         <div className="p-4 sm:p-5 border-b border-yellow-100 flex items-center justify-between bg-amber-50/80">
@@ -139,14 +154,14 @@ export const AddMedicationModal: React.FC<AddMedicationModalProps> = ({
               <Pill className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-amber-950">Add New Medication</h2>
-              <p className="text-xs text-amber-800/80">Set medicine name, dosage, schedule timings and duration</p>
+              <h2 className="text-base sm:text-lg font-bold text-amber-950">{t('addNewMedication')}</h2>
+              <p className="text-xs text-amber-800/80">{t('managePrescriptions')}</p>
             </div>
           </div>
           <button
             onClick={onClose}
             aria-label="Close dialog"
-            className="p-1.5 rounded-lg text-amber-700 hover:text-amber-950 hover:bg-amber-100 transition-colors"
+            className="p-1.5 rounded-lg text-amber-700 hover:text-amber-950 hover:bg-amber-100 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -157,7 +172,7 @@ export const AddMedicationModal: React.FC<AddMedicationModalProps> = ({
           {/* Quick Examples */}
           <div>
             <label className="block text-xs font-semibold text-amber-900 mb-1.5">
-              Quick Suggestions (Click to fill):
+              {t('quickSuggestions')}:
             </label>
             <div className="flex flex-wrap gap-1.5">
               {QUICK_MEDICINE_SUGGESTIONS.map((sug) => (
@@ -165,7 +180,7 @@ export const AddMedicationModal: React.FC<AddMedicationModalProps> = ({
                   type="button"
                   key={sug.label}
                   onClick={() => handleApplySuggestion(sug)}
-                  className="px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-50 hover:bg-amber-200 hover:text-amber-950 hover:border-amber-400 text-amber-900 border border-yellow-200 transition-all"
+                  className="px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-50 hover:bg-amber-200 hover:text-amber-950 hover:border-amber-400 text-amber-900 border border-yellow-200 transition-all cursor-pointer"
                 >
                   + {sug.label}
                 </button>
@@ -177,7 +192,7 @@ export const AddMedicationModal: React.FC<AddMedicationModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="sm:col-span-2">
               <label htmlFor="input-med-name" className="block text-xs font-bold text-amber-950 mb-1">
-                Medicine Name *
+                {t('medicineName')} *
               </label>
               <input
                 id="input-med-name"
@@ -185,14 +200,14 @@ export const AddMedicationModal: React.FC<AddMedicationModalProps> = ({
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Dolo 650, Night Painkiller, Vitamin C"
+                placeholder="e.g. Dolo 650, Paracetamol, Vitamin C"
                 className="w-full px-3 py-2 rounded-xl border border-yellow-300 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 text-sm font-medium bg-amber-50/20"
               />
             </div>
 
             <div>
               <label htmlFor="input-med-form" className="block text-xs font-bold text-amber-950 mb-1">
-                Form
+                {t('form')}
               </label>
               <select
                 id="input-med-form"
@@ -200,13 +215,13 @@ export const AddMedicationModal: React.FC<AddMedicationModalProps> = ({
                 onChange={(e) => setForm(e.target.value as MedicineForm)}
                 className="w-full px-3 py-2 rounded-xl border border-yellow-300 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm font-medium"
               >
-                <option value="tablet">Tablet / Pill</option>
-                <option value="capsule">Capsule</option>
-                <option value="syrup">Syrup (liquid)</option>
-                <option value="drops">Drops</option>
-                <option value="inhaler">Inhaler</option>
-                <option value="injection">Injection</option>
-                <option value="other">Other</option>
+                <option value="tablet">{t('tablet')}</option>
+                <option value="capsule">{t('capsule')}</option>
+                <option value="syrup">{t('syrup')}</option>
+                <option value="drops">{t('drops')}</option>
+                <option value="inhaler">{t('inhaler')}</option>
+                <option value="injection">{t('injection')}</option>
+                <option value="other">{t('other')}</option>
               </select>
             </div>
           </div>
@@ -215,7 +230,7 @@ export const AddMedicationModal: React.FC<AddMedicationModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label htmlFor="input-dosage" className="block text-xs font-bold text-amber-950 mb-1">
-                Dosage
+                {t('dosage')}
               </label>
               <input
                 id="input-dosage"
@@ -229,7 +244,7 @@ export const AddMedicationModal: React.FC<AddMedicationModalProps> = ({
 
             <div>
               <label htmlFor="input-instructions" className="block text-xs font-bold text-amber-950 mb-1">
-                Intake Instructions
+                {t('foodInstruction')}
               </label>
               <select
                 id="input-instructions"
@@ -237,11 +252,11 @@ export const AddMedicationModal: React.FC<AddMedicationModalProps> = ({
                 onChange={(e) => setInstructions(e.target.value as FoodInstruction)}
                 className="w-full px-3 py-2 rounded-xl border border-yellow-300 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm font-medium"
               >
-                <option value="after_food">After Food (Post-meal)</option>
-                <option value="before_food">Before Food (Empty stomach)</option>
-                <option value="with_food">With Food</option>
-                <option value="empty_stomach">Empty Stomach (Morning)</option>
-                <option value="anytime">Anytime</option>
+                <option value="after_food">{t('afterFood')}</option>
+                <option value="before_food">{t('beforeFood')}</option>
+                <option value="with_food">{t('withFood')}</option>
+                <option value="empty_stomach">{t('emptyStomach')}</option>
+                <option value="anytime">{t('anytime')}</option>
               </select>
             </div>
           </div>
@@ -250,12 +265,12 @@ export const AddMedicationModal: React.FC<AddMedicationModalProps> = ({
           <div className="p-4 rounded-2xl bg-amber-50/70 border border-yellow-300 space-y-3">
             <div className="flex items-center justify-between">
               <label className="block text-xs font-bold text-amber-950">
-                Course Duration (Days or Always) *
+                {t('courseDuration')} *
               </label>
               <span className="text-[11px] text-amber-900 font-semibold">
                 {durationType === 'always'
-                  ? 'Active indefinitely'
-                  : `${durationDays} Days Course (until ${calculatedEndDate ? formatHumanDate(calculatedEndDate) : ''})`}
+                  ? t('continuousOngoing')
+                  : `${durationDays} ${t('daysLeft', { days: durationDays })} (${calculatedEndDate ? formatLocalizedDate(calculatedEndDate + 'T00:00:00', { month: 'short', day: 'numeric' }) : ''})`}
               </span>
             </div>
 
@@ -267,13 +282,13 @@ export const AddMedicationModal: React.FC<AddMedicationModalProps> = ({
                   setDurationType('fixed_days');
                   setDurationDays(5);
                 }}
-                className={`py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all ${
+                className={`py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
                   durationType === 'fixed_days' && durationDays === 5
                     ? 'bg-amber-500 text-amber-950 border-amber-500 shadow-2xs font-bold'
                     : 'bg-white text-slate-700 border-slate-200 hover:bg-amber-100/50'
                 }`}
               >
-                5 Days
+                5 {t('daysLeft', { days: 5 }).split(' ')[1] || 'Days'}
               </button>
 
               <button
@@ -282,13 +297,13 @@ export const AddMedicationModal: React.FC<AddMedicationModalProps> = ({
                   setDurationType('fixed_days');
                   setDurationDays(7);
                 }}
-                className={`py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all ${
+                className={`py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
                   durationType === 'fixed_days' && durationDays === 7
                     ? 'bg-amber-500 text-amber-950 border-amber-500 shadow-2xs font-bold'
                     : 'bg-white text-slate-700 border-slate-200 hover:bg-amber-100/50'
                 }`}
               >
-                7 Days
+                7 {t('daysLeft', { days: 7 }).split(' ')[1] || 'Days'}
               </button>
 
               <button
@@ -297,13 +312,13 @@ export const AddMedicationModal: React.FC<AddMedicationModalProps> = ({
                   setDurationType('fixed_days');
                   setDurationDays(14);
                 }}
-                className={`py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all ${
+                className={`py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
                   durationType === 'fixed_days' && durationDays === 14
                     ? 'bg-amber-500 text-amber-950 border-amber-500 shadow-2xs font-bold'
                     : 'bg-white text-slate-700 border-slate-200 hover:bg-amber-100/50'
                 }`}
               >
-                14 Days
+                14 {t('daysLeft', { days: 14 }).split(' ')[1] || 'Days'}
               </button>
 
               <button
@@ -312,25 +327,25 @@ export const AddMedicationModal: React.FC<AddMedicationModalProps> = ({
                   setDurationType('fixed_days');
                   setDurationDays(30);
                 }}
-                className={`py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all ${
+                className={`py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
                   durationType === 'fixed_days' && durationDays === 30
                     ? 'bg-amber-500 text-amber-950 border-amber-500 shadow-2xs font-bold'
                     : 'bg-white text-slate-700 border-slate-200 hover:bg-amber-100/50'
                 }`}
               >
-                30 Days
+                30 {t('daysLeft', { days: 30 }).split(' ')[1] || 'Days'}
               </button>
 
               <button
                 type="button"
                 onClick={() => setDurationType('always')}
-                className={`py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all ${
+                className={`py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
                   durationType === 'always'
                     ? 'bg-amber-500 text-amber-950 border-amber-500 shadow-2xs font-bold'
                     : 'bg-white text-slate-700 border-slate-200 hover:bg-amber-100/50'
                 }`}
               >
-                Always (Ongoing)
+                {t('continuousOngoing')}
               </button>
             </div>
 
@@ -338,7 +353,7 @@ export const AddMedicationModal: React.FC<AddMedicationModalProps> = ({
             {durationType === 'fixed_days' && (
               <div className="flex items-center space-x-3 pt-1">
                 <span className="text-xs font-semibold text-amber-900 whitespace-nowrap">
-                  Custom Days:
+                  {t('customDays')}:
                 </span>
                 <input
                   type="number"
@@ -349,7 +364,7 @@ export const AddMedicationModal: React.FC<AddMedicationModalProps> = ({
                   className="w-24 px-3 py-1 rounded-lg border border-yellow-300 bg-white text-sm font-semibold text-amber-950"
                 />
                 <span className="text-xs text-amber-900/80">
-                  Calculated End Date: <strong className="text-amber-950">{calculatedEndDate ? formatHumanDate(calculatedEndDate) : ''}</strong>
+                  {t('endDate')}: <strong className="text-amber-950">{calculatedEndDate ? formatLocalizedDate(calculatedEndDate + 'T00:00:00', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</strong>
                 </span>
               </div>
             )}
@@ -358,7 +373,7 @@ export const AddMedicationModal: React.FC<AddMedicationModalProps> = ({
           {/* Start Date */}
           <div>
             <label htmlFor="input-start-date" className="block text-xs font-bold text-amber-950 mb-1">
-              Start Date
+              {t('startDate')}
             </label>
             <input
               id="input-start-date"
@@ -374,10 +389,10 @@ export const AddMedicationModal: React.FC<AddMedicationModalProps> = ({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <label className="block text-xs font-bold text-amber-950">
-                  Dose Timings (Alarms Trigger at these Times) *
+                  {t('scheduledTimings')} *
                 </label>
                 <p className="text-[11px] text-amber-800/80">
-                  Audio alarm and senior prompts trigger automatically at these times
+                  {t('autoAlarmPromptInfo')}
                 </p>
               </div>
 
@@ -386,31 +401,31 @@ export const AddMedicationModal: React.FC<AddMedicationModalProps> = ({
                 <button
                   type="button"
                   onClick={() => handleApplyPresetTimes('morning')}
-                  className="px-2 py-0.5 rounded text-[11px] bg-amber-100 hover:bg-amber-200 text-amber-900 font-medium"
+                  className="px-2 py-0.5 rounded text-[11px] bg-amber-100 hover:bg-amber-200 text-amber-900 font-medium cursor-pointer"
                 >
-                  1x (Morning)
+                  1x ({t('morning')})
                 </button>
                 <button
                   type="button"
                   onClick={() => handleApplyPresetTimes('morning_night')}
-                  className="px-2 py-0.5 rounded text-[11px] bg-amber-100 hover:bg-amber-200 text-amber-900 font-medium"
+                  className="px-2 py-0.5 rounded text-[11px] bg-amber-100 hover:bg-amber-200 text-amber-900 font-medium cursor-pointer"
                 >
-                  2x (Morn & Night)
+                  2x ({t('morning')}, {t('night')})
                 </button>
                 <button
                   type="button"
                   onClick={() => handleApplyPresetTimes('thrice')}
-                  className="px-2 py-0.5 rounded text-[11px] bg-amber-100 hover:bg-amber-200 text-amber-900 font-medium"
+                  className="px-2 py-0.5 rounded text-[11px] bg-amber-100 hover:bg-amber-200 text-amber-900 font-medium cursor-pointer"
                 >
-                  3x (Morn, Aft, Night)
+                  3x ({t('morning')}, {t('afternoon')}, {t('night')})
                 </button>
               </div>
             </div>
 
             {/* List of Time Slots */}
             <div className="space-y-2">
-              {times.map((t, idx) => (
-                <div key={t.id} className="flex items-center space-x-2 bg-white p-2.5 rounded-xl border border-yellow-200">
+              {times.map((tItem, idx) => (
+                <div key={tItem.id} className="flex items-center space-x-2 bg-white p-2.5 rounded-xl border border-yellow-200">
                   <span className="text-xs font-bold text-amber-700 w-6 text-center">
                     #{idx + 1}
                   </span>
@@ -418,17 +433,17 @@ export const AddMedicationModal: React.FC<AddMedicationModalProps> = ({
                   <input
                     type="time"
                     required
-                    value={t.time}
-                    onChange={(e) => handleUpdateTime(t.id, e.target.value)}
+                    value={tItem.time}
+                    onChange={(e) => handleUpdateTime(tItem.id, e.target.value)}
                     className="px-2.5 py-1.5 rounded-lg border border-yellow-300 bg-amber-50/30 text-sm font-bold text-amber-950 focus:outline-none focus:ring-2 focus:ring-amber-400"
                   />
 
                   <span className="text-xs font-semibold text-amber-900 bg-amber-50 px-2 py-1 rounded-md border border-yellow-200">
-                    {formatTime12h(t.time)}
+                    {formatLocalizedTime(tItem.time)}
                   </span>
 
                   <span className="text-xs font-medium text-amber-800 px-2">
-                    {t.label}
+                    {getScheduleLabelName(tItem.label)}
                   </span>
 
                   <div className="flex-1" />
@@ -436,9 +451,9 @@ export const AddMedicationModal: React.FC<AddMedicationModalProps> = ({
                   {times.length > 1 && (
                     <button
                       type="button"
-                      onClick={() => handleRemoveTimeSlot(t.id)}
-                      className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                      title="Remove time slot"
+                      onClick={() => handleRemoveTimeSlot(tItem.id)}
+                      className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                      title={t('delete')}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -450,25 +465,35 @@ export const AddMedicationModal: React.FC<AddMedicationModalProps> = ({
             <button
               type="button"
               onClick={handleAddTimeSlot}
-              className="inline-flex items-center space-x-1 text-xs font-bold text-amber-700 hover:text-amber-900 pt-1"
+              className="inline-flex items-center space-x-1 text-xs font-bold text-amber-700 hover:text-amber-900 pt-1 cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Add Another Dose Timing</span>
+              <span>{t('addAnotherTiming')}</span>
             </button>
           </div>
 
           {/* Notes */}
           <div>
-            <label htmlFor="input-notes" className="block text-xs font-bold text-amber-950 mb-1">
-              Instructions or Doctor Notes (Optional)
-            </label>
-            <input
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <label htmlFor="input-notes" className="block text-xs font-bold text-amber-950">
+                {t('specialNotes')}
+              </label>
+              <button
+                type="button"
+                onClick={() => setIsScannerOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-950 hover:bg-amber-200"
+              >
+                <ScanText className="h-3.5 w-3.5" />
+                Scan Prescription
+              </button>
+            </div>
+            <textarea
               id="input-notes"
-              type="text"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="e.g. Take with warm water, avoid milk, take 30 mins before sleep"
-              className="w-full px-3 py-2 rounded-xl border border-yellow-300 bg-amber-50/20 focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm font-medium"
+              rows={3}
+              className="w-full resize-y rounded-xl border border-yellow-300 bg-amber-50/20 px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-400"
             />
           </div>
 
@@ -477,9 +502,9 @@ export const AddMedicationModal: React.FC<AddMedicationModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl border border-yellow-300 text-xs sm:text-sm font-semibold text-amber-900 hover:bg-amber-50 transition-colors"
+              className="px-4 py-2 rounded-xl border border-yellow-300 text-xs sm:text-sm font-semibold text-amber-900 hover:bg-amber-50 transition-colors cursor-pointer"
             >
-              Cancel
+              {t('cancel')}
             </button>
             <button
               id="btn-save-new-medication"
@@ -487,11 +512,19 @@ export const AddMedicationModal: React.FC<AddMedicationModalProps> = ({
               className="inline-flex items-center space-x-1.5 px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-amber-950 text-xs sm:text-sm font-bold shadow-md shadow-amber-400/30 transition-all cursor-pointer"
             >
               <Check className="w-4 h-4" />
-              <span>Save Medication</span>
+              <span>{t('saveMedication')}</span>
             </button>
           </div>
         </form>
       </div>
-    </div>
+      </div>
+      <PrescriptionScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onTextExtracted={(text) => {
+          setNotes((previous) => (previous.trim() ? `${previous.trim()}\n\n${text}` : text));
+        }}
+      />
+    </>
   );
 };

@@ -7,6 +7,9 @@ import {
   MissedDoseAlert,
   CaretakerNudge,
   ActiveAlarm,
+  FoodInstruction,
+  WellnessCheckin,
+  WellnessPatternAlert,
 } from '../types';
 import {
   formatDateToISO,
@@ -31,9 +34,12 @@ import {
   TrendingUp,
   ShieldAlert,
   Pill,
+  Mic,
+  Trash2,
 } from 'lucide-react';
 import { CalendarView } from './CalendarView';
 import { MedicationList } from './MedicationList';
+import { useLanguage } from '../context/LanguageContext';
 
 interface CaretakerViewProps {
   userProfile: UserProfile;
@@ -50,13 +56,17 @@ interface CaretakerViewProps {
   ) => void;
   onOpenAddModal: () => void;
   onRemoveMedication: (id: string) => void;
+  onTriggerAlarmForMed: (med: Medication, time: string, label: string) => void;
   onSendNudge: (medicationName?: string, customMessage?: string) => void;
   onOpenCallModal: () => void;
+  onOpenVoiceAssistant?: () => void;
   onSimulateMissedDose: () => void;
   dismissedAlertIds: string[];
   onDismissAlertId: (id: string) => void;
   caretakerTab: 'overview' | 'medications' | 'calendar';
   setCaretakerTab: (tab: 'overview' | 'medications' | 'calendar') => void;
+  wellnessCheckins: WellnessCheckin[];
+  wellnessAlerts: WellnessPatternAlert[];
 }
 
 export const CaretakerView: React.FC<CaretakerViewProps> = ({
@@ -68,16 +78,43 @@ export const CaretakerView: React.FC<CaretakerViewProps> = ({
   onUpdateDoseStatus,
   onOpenAddModal,
   onRemoveMedication,
+  onTriggerAlarmForMed,
   onSendNudge,
   onOpenCallModal,
+  onOpenVoiceAssistant,
   onSimulateMissedDose,
   dismissedAlertIds,
   onDismissAlertId,
   caretakerTab,
   setCaretakerTab,
+  wellnessCheckins,
+  wellnessAlerts,
 }) => {
+  const { t, formatLocalizedDate, formatLocalizedTime } = useLanguage();
+  const [confirmDeleteMedId, setConfirmDeleteMedId] = useState<string | null>(null);
   const todayISO = formatDateToISO(new Date());
   const isToday = selectedDateISO === todayISO;
+
+  const getFoodInstructionName = (inst: FoodInstruction): string => {
+    switch (inst) {
+      case 'after_food': return t('afterFood');
+      case 'before_food': return t('beforeFood');
+      case 'with_food': return t('withFood');
+      case 'empty_stomach': return t('emptyStomach');
+      case 'anytime': return t('anytime');
+      default: return inst;
+    }
+  };
+
+  const getScheduleLabelName = (label: string): string => {
+    const l = label.toLowerCase();
+    if (l.includes('morning')) return t('morning');
+    if (l.includes('afternoon')) return t('afternoon');
+    if (l.includes('evening')) return t('evening');
+    if (l.includes('night')) return t('night');
+    if (l.includes('custom')) return t('custom');
+    return label;
+  };
 
   const now = new Date();
   const currentHours = String(now.getHours()).padStart(2, '0');
@@ -133,9 +170,12 @@ export const CaretakerView: React.FC<CaretakerViewProps> = ({
   // Custom nudge text state
   const [quickNudgeMessage, setQuickNudgeMessage] = useState('');
   const [isCustomNudgeOpen, setIsCustomNudgeOpen] = useState(false);
+  const latestWellnessCheckin = wellnessCheckins[0];
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
+      {wellnessAlerts.length > 0 && <section className="rounded-3xl border-2 border-teal-300 bg-teal-50 p-5"><p className="text-xs font-extrabold uppercase tracking-wider text-teal-800">Poppy care companion alert</p><h2 className="mt-1 text-xl font-extrabold text-slate-900">A concern has been mentioned on several days</h2><p className="mt-1 text-sm text-slate-700">This is an observation, not a diagnosis. Consider checking in with {userProfile.elderlyName}.</p><div className="mt-3 flex flex-wrap gap-2">{wellnessAlerts.map((alert) => <span key={alert.id} className="rounded-xl border border-teal-300 bg-white px-3 py-2 text-sm font-bold capitalize text-teal-950">{alert.symptom} · {alert.occurrences} days this week</span>)}</div></section>}
+      {latestWellnessCheckin && <section className="flex gap-3 rounded-2xl border border-teal-200 bg-white px-4 py-3 text-sm text-slate-700"><span className="text-lg">🐥</span><p><strong className="text-slate-900">Today’s Poppy check-in:</strong> “{latestWellnessCheckin.response}”</p></section>}
       {/* ============================================================ */}
       {/* 🚨 CRITICAL REQUIREMENT: CARETAKER MISSED DOSE NOTIFICATION  */}
       {/* ============================================================ */}
@@ -150,14 +190,26 @@ export const CaretakerView: React.FC<CaretakerViewProps> = ({
                 <div>
                   <div className="flex items-center space-x-2">
                     <span className="bg-red-600 text-white text-[11px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full">
-                      ⚠️ URGENT NOTIFICATION
+                      ⚠️ {t('missedDoseAlertTitle')}
                     </span>
                     <span className="text-xs font-semibold text-red-700">
-                      {activeMissedAlerts.length} Medicine{activeMissedAlerts.length > 1 ? 's' : ''} NOT Taken!
+                      {activeMissedAlerts.length} {t('tabMedications')} {t('overdue')}!
                     </span>
                   </div>
                   <h2 className="text-xl sm:text-2xl font-black text-slate-900 mt-0.5">
-                    {userProfile.elderlyName} has NOT taken scheduled medication!
+                    {activeMissedAlerts.length === 1
+                      ? t('missedDoseAlertDesc', {
+                          senior: userProfile.elderlyName,
+                          name: userProfile.elderlyName,
+                          med: activeMissedAlerts[0].med.name,
+                          dosage: activeMissedAlerts[0].med.dosage,
+                          time: formatLocalizedTime(activeMissedAlerts[0].time),
+                        })
+                      : t('multipleMissedDosesAlert', {
+                          senior: userProfile.elderlyName,
+                          name: userProfile.elderlyName,
+                          count: activeMissedAlerts.length,
+                        })}
                   </h2>
                 </div>
               </div>
@@ -167,10 +219,10 @@ export const CaretakerView: React.FC<CaretakerViewProps> = ({
                 type="button"
                 id="btn-caretaker-call-senior-urgent"
                 onClick={onOpenCallModal}
-                className="w-full md:w-auto px-5 py-3 rounded-2xl bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-extrabold text-sm shadow-md flex items-center justify-center space-x-2"
+                className="w-full md:w-auto px-5 py-3 rounded-2xl bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-extrabold text-sm shadow-md flex items-center justify-center space-x-2 cursor-pointer"
               >
                 <Phone className="w-4 h-4" />
-                <span>Call {userProfile.elderlyName}</span>
+                <span>{t('callSenior', { senior: userProfile.elderlyName })}</span>
               </button>
             </div>
 
@@ -190,12 +242,12 @@ export const CaretakerView: React.FC<CaretakerViewProps> = ({
                         {missed.med.dosage}
                       </span>
                       <span className="text-xs font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
-                        {missed.minutesLate} mins overdue
+                        {t('minutesLate', { min: missed.minutesLate, minutes: missed.minutesLate })}
                       </span>
                     </div>
                     <p className="text-xs sm:text-sm text-slate-600">
-                      Scheduled for <strong className="text-slate-900">{formatTime12h(missed.time)} ({missed.label})</strong> •{' '}
-                      <span className="capitalize">{missed.med.instructions.replace('_', ' ')}</span>
+                      {t('scheduledFor', { time: formatLocalizedTime(missed.time), label: getScheduleLabelName(missed.label) })} •{' '}
+                      <span className="capitalize">{getFoodInstructionName(missed.med.instructions)}</span>
                     </p>
                   </div>
 
@@ -208,7 +260,7 @@ export const CaretakerView: React.FC<CaretakerViewProps> = ({
                       className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-amber-950 font-bold text-xs shadow-xs flex items-center space-x-1.5 cursor-pointer"
                     >
                       <Send className="w-3.5 h-3.5" />
-                      <span>Send Nudge to Senior</span>
+                      <span>{t('sendNudge')}</span>
                     </button>
 
                     {/* Mark Taken by Caregiver */}
@@ -224,10 +276,10 @@ export const CaretakerView: React.FC<CaretakerViewProps> = ({
                           'taken'
                         )
                       }
-                      className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs flex items-center space-x-1"
+                      className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs flex items-center space-x-1 cursor-pointer"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Mark Taken</span>
+                      <span>{t('markAsTaken')}</span>
                     </button>
 
                     {/* Acknowledge / Dismiss */}
@@ -235,8 +287,8 @@ export const CaretakerView: React.FC<CaretakerViewProps> = ({
                       type="button"
                       id={`btn-dismiss-alert-${missed.id}`}
                       onClick={() => onDismissAlertId(missed.id)}
-                      title="Dismiss notification for this dose"
-                      className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600"
+                      title={t('dismissAlert')}
+                      className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 cursor-pointer"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -271,16 +323,30 @@ export const CaretakerView: React.FC<CaretakerViewProps> = ({
             </div>
           </div>
 
-          {/* Test / Simulate Missed Dose Button */}
-          <button
-            type="button"
-            id="btn-simulate-missed-dose"
-            onClick={onSimulateMissedDose}
-            className="px-4 py-2.5 rounded-xl bg-amber-300 hover:bg-amber-400 text-amber-950 font-bold text-xs border border-amber-400/80 shadow-xs flex items-center space-x-2 transition-all cursor-pointer"
-          >
-            <Sparkles className="w-4 h-4 text-amber-900" />
-            <span>⚡ Test: Simulate Missed Dose</span>
-          </button>
+          {/* Actions: AI Voice Assistant & Simulate Missed Dose Button */}
+          <div className="flex flex-wrap items-center gap-2">
+            {onOpenVoiceAssistant && (
+              <button
+                type="button"
+                id="btn-caretaker-voice-assistant"
+                onClick={onOpenVoiceAssistant}
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-400 hover:from-amber-500 hover:to-yellow-500 text-amber-950 font-bold text-xs border border-amber-400 shadow-xs flex items-center space-x-2 transition-all cursor-pointer"
+              >
+                <Mic className="w-4 h-4 text-amber-950 animate-pulse" />
+                <span>{t('voiceAssistant')}</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              id="btn-simulate-missed-dose"
+              onClick={onSimulateMissedDose}
+              className="px-4 py-2.5 rounded-xl bg-amber-300 hover:bg-amber-400 text-amber-950 font-bold text-xs border border-amber-400/80 shadow-xs flex items-center space-x-2 transition-all cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4 text-amber-900" />
+              <span>⚡ {t('simulateMissedDose')}</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -293,12 +359,12 @@ export const CaretakerView: React.FC<CaretakerViewProps> = ({
           </div>
           <div>
             <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-              Elderly In Care
+              {t('elderlyPerson')}
             </div>
             <div className="text-base font-extrabold text-slate-900">
               {userProfile.elderlyName}
             </div>
-            <div className="text-xs text-amber-700 font-semibold">Circle: {userProfile.circleCode}</div>
+            <div className="text-xs text-amber-700 font-semibold">{t('circleCode')}: {userProfile.circleCode}</div>
           </div>
         </div>
 
@@ -309,13 +375,13 @@ export const CaretakerView: React.FC<CaretakerViewProps> = ({
           </div>
           <div>
             <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-              Today's Adherence
+              {t('statAdherence')}
             </div>
             <div className="text-xl font-extrabold text-slate-900">
               {adherenceRate}%
             </div>
             <div className="text-xs text-slate-500">
-              {takenDosesToday} of {totalDosesToday} doses taken
+              {t('dosesTakenCount', { taken: takenDosesToday, total: totalDosesToday })}
             </div>
           </div>
         </div>
@@ -327,12 +393,12 @@ export const CaretakerView: React.FC<CaretakerViewProps> = ({
           </div>
           <div>
             <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-              Prescriptions
+              {t('tabMedications')}
             </div>
             <div className="text-xl font-extrabold text-slate-900">
-              {medications.length} Active
+              {medications.length}
             </div>
-            <div className="text-xs text-slate-500">Daily scheduled items</div>
+            <div className="text-xs text-slate-500">{t('continuousOngoing')}</div>
           </div>
         </div>
 
@@ -345,7 +411,7 @@ export const CaretakerView: React.FC<CaretakerViewProps> = ({
             className="w-full py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-amber-950 font-bold text-xs shadow-xs flex items-center justify-center space-x-1.5 transition-colors cursor-pointer"
           >
             <Send className="w-3.5 h-3.5" />
-            <span>Send Custom Nudge</span>
+            <span>{t('sendNudge')}</span>
           </button>
         </div>
       </div>
@@ -357,7 +423,7 @@ export const CaretakerView: React.FC<CaretakerViewProps> = ({
             type="text"
             value={quickNudgeMessage}
             onChange={(e) => setQuickNudgeMessage(e.target.value)}
-            placeholder={`Type a gentle reminder message for ${userProfile.elderlyName}...`}
+            placeholder={t('writeMessagePlaceholder', { name: userProfile.elderlyName })}
             className="flex-1 px-4 py-2 rounded-xl border border-amber-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
           />
           <button
@@ -370,9 +436,9 @@ export const CaretakerView: React.FC<CaretakerViewProps> = ({
                 setIsCustomNudgeOpen(false);
               }
             }}
-            className="w-full sm:w-auto px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-amber-950 font-bold text-sm shadow-xs"
+            className="w-full sm:w-auto px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-amber-950 font-bold text-sm shadow-xs cursor-pointer"
           >
-            Send Now
+            {t('send')}
           </button>
         </div>
       )}
@@ -384,25 +450,25 @@ export const CaretakerView: React.FC<CaretakerViewProps> = ({
             type="button"
             id="tab-caretaker-schedule"
             onClick={() => setCaretakerTab('overview')}
-            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer ${
               caretakerTab === 'overview'
                 ? 'bg-amber-400 text-amber-950 shadow-xs'
                 : 'bg-white text-slate-700 hover:bg-amber-100/50'
             }`}
           >
-            Daily Adherence & Calendar
+            {t('tabOverview')}
           </button>
           <button
             type="button"
             id="tab-caretaker-medications"
             onClick={() => setCaretakerTab('medications')}
-            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer ${
               caretakerTab === 'medications'
                 ? 'bg-amber-400 text-amber-950 shadow-xs'
                 : 'bg-white text-slate-700 hover:bg-amber-100/50'
             }`}
           >
-            Manage Prescriptions ({medications.length})
+            {t('managePrescriptions')} ({medications.length})
           </button>
         </div>
 
@@ -411,10 +477,10 @@ export const CaretakerView: React.FC<CaretakerViewProps> = ({
           type="button"
           id="btn-caretaker-add-med"
           onClick={onOpenAddModal}
-          className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-amber-950 font-bold text-xs sm:text-sm shadow-xs flex items-center space-x-1.5 transition-all"
+          className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-amber-950 font-bold text-xs sm:text-sm shadow-xs flex items-center space-x-1.5 transition-all cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>Add Medicine</span>
+          <span>{t('addMedicine')}</span>
         </button>
       </div>
 
@@ -437,10 +503,10 @@ export const CaretakerView: React.FC<CaretakerViewProps> = ({
               <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
                 <div>
                   <h3 className="text-xl font-extrabold text-slate-900">
-                    {userProfile.elderlyName}'s Schedule
+                    {userProfile.elderlyName}'s {t('tabOverview')}
                   </h3>
                   <p className="text-xs text-slate-500">
-                    {new Date(selectedDateISO + 'T00:00:00').toLocaleDateString('en-US', {
+                    {formatLocalizedDate(selectedDateISO + 'T00:00:00', {
                       weekday: 'long',
                       month: 'long',
                       day: 'numeric',
@@ -448,24 +514,24 @@ export const CaretakerView: React.FC<CaretakerViewProps> = ({
                     })}
                   </p>
                 </div>
-                <span className="text-xs font-bold text-amber-900 bg-amber-100 px-3 py-1 rounded-full border border-amber-300">
-                  {selectedDateISO === todayISO ? 'Today' : selectedDateISO}
+                <span className="text-xs font-bold text-amber-900 bg-amber-100 px-3 py-1 rounded-full border border-amber-300 uppercase">
+                  {selectedDateISO === todayISO ? t('today') : selectedDateISO}
                 </span>
               </div>
 
               {/* Schedule cards */}
               {activeTodayMeds.length === 0 ? (
                 <div className="py-8 text-center text-slate-500">
-                  <p className="font-semibold text-sm">No medications active for this date.</p>
+                  <p className="font-semibold text-sm">{t('noMedsForSelectedDay')}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {activeTodayMeds.map((med) =>
-                    med.times.map((t) => {
-                      const doseId = `${med.id}_${selectedDateISO}_${t.time}`;
+                    med.times.map((tItem) => {
+                      const doseId = `${med.id}_${selectedDateISO}_${tItem.time}`;
                       const log = doseLogs.find((l) => l.id === doseId);
                       const status: DoseStatus = log ? log.status : 'pending';
-                      const isPast = selectedDateISO === todayISO && currentTimeStr > t.time && status === 'pending';
+                      const isPast = selectedDateISO === todayISO && currentTimeStr > tItem.time && status === 'pending';
 
                       return (
                         <div
@@ -496,8 +562,8 @@ export const CaretakerView: React.FC<CaretakerViewProps> = ({
                                 <span className="text-xs text-slate-500 font-medium">({med.dosage})</span>
                               </div>
                               <div className="text-xs text-slate-600">
-                                <span>{formatTime12h(t.time)} ({t.label})</span> •{' '}
-                                <span className="capitalize">{med.instructions.replace('_', ' ')}</span>
+                                <span>{formatLocalizedTime(tItem.time)} ({getScheduleLabelName(tItem.label)})</span> •{' '}
+                                <span className="capitalize">{getFoodInstructionName(med.instructions)}</span>
                               </div>
                             </div>
                           </div>
@@ -506,15 +572,15 @@ export const CaretakerView: React.FC<CaretakerViewProps> = ({
                           <div className="flex items-center space-x-2">
                             {status === 'taken' ? (
                               <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-200">
-                                Taken {log?.takenAt ? `at ${new Date(log.takenAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Confirmed'}
+                                {t('taken')} {log?.takenAt ? `(${new Date(log.takenAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })})` : ''}
                               </span>
                             ) : isPast ? (
                               <span className="text-xs font-bold text-red-700 bg-red-100 px-2.5 py-1 rounded-full border border-red-200 animate-pulse">
-                                Overdue (Missed)
+                                {t('overdue')}
                               </span>
                             ) : (
                               <span className="text-xs font-semibold text-slate-500 bg-white px-2.5 py-1 rounded-full border border-slate-200">
-                                Upcoming
+                                {t('dueNow')}
                               </span>
                             )}
 
@@ -525,15 +591,52 @@ export const CaretakerView: React.FC<CaretakerViewProps> = ({
                                 onUpdateDoseStatus(
                                   med.id,
                                   selectedDateISO,
-                                  t.time,
-                                  t.label,
+                                  tItem.time,
+                                  tItem.label,
                                   status === 'taken' ? 'pending' : 'taken'
                                 )
                               }
                               className="text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 cursor-pointer"
                             >
-                              {status === 'taken' ? 'Mark Pending' : 'Mark Taken'}
+                              {status === 'taken' ? t('undo') : t('markAsTaken')}
                             </button>
+
+                            {/* Delete Medication Option */}
+                            {confirmDeleteMedId === med.id ? (
+                              <div className="flex items-center space-x-1 bg-red-50 p-1 rounded-lg border border-red-200 animate-in fade-in">
+                                <span className="text-[11px] font-bold text-red-700 px-1">{t('delete')}?</span>
+                                <button
+                                  type="button"
+                                  id={`btn-caretaker-confirm-delete-${med.id}`}
+                                  onClick={() => {
+                                    onRemoveMedication(med.id);
+                                    setConfirmDeleteMedId(null);
+                                  }}
+                                  className="px-2 py-1 rounded bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold transition-colors cursor-pointer"
+                                >
+                                  {t('delete')}
+                                </button>
+                                <button
+                                  type="button"
+                                  id={`btn-caretaker-cancel-delete-${med.id}`}
+                                  onClick={() => setConfirmDeleteMedId(null)}
+                                  className="px-1.5 py-1 rounded text-slate-600 hover:bg-slate-200 text-[11px] transition-colors cursor-pointer"
+                                >
+                                  {t('cancel')}
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                id={`btn-caretaker-delete-med-${med.id}`}
+                                onClick={() => setConfirmDeleteMedId(med.id)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-colors cursor-pointer"
+                                title={`${t('delete')} ${med.name}`}
+                                aria-label={`${t('delete')} ${med.name}`}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </div>
                         </div>
                       );
@@ -551,6 +654,7 @@ export const CaretakerView: React.FC<CaretakerViewProps> = ({
             medications={medications}
             onRemoveMedication={onRemoveMedication}
             onOpenAddModal={onOpenAddModal}
+            onTriggerAlarmForMed={onTriggerAlarmForMed}
           />
         </div>
       )}

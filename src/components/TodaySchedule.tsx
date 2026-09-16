@@ -5,6 +5,7 @@ import {
   Pill,
   AlertCircle,
   RotateCcw,
+  Volume2,
   Calendar,
   Sparkles,
   ChevronRight,
@@ -37,6 +38,7 @@ interface TodayScheduleProps {
   medications: Medication[];
   doseLogs: DoseLog[];
   onUpdateDoseStatus: (medicationId: string, dateISO: string, time: string, label: string, status: DoseStatus) => void;
+  onTriggerAlarmForMed: (med: Medication, time: string, label: string) => void;
   onOpenAddModal: () => void;
 }
 
@@ -45,6 +47,7 @@ export const TodaySchedule: React.FC<TodayScheduleProps> = ({
   medications,
   doseLogs,
   onUpdateDoseStatus,
+  onTriggerAlarmForMed,
   onOpenAddModal,
 }) => {
   const todayISO = formatDateToISO(new Date());
@@ -258,6 +261,15 @@ export const TodaySchedule: React.FC<TodayScheduleProps> = ({
 
                   {/* Right: Actions & Status controls */}
                   <div className="flex items-center space-x-2 self-end sm:self-center">
+                    {/* Trigger alarm simulation for this dose */}
+                    <button
+                      onClick={() => onTriggerAlarmForMed(dose.medication, dose.time, dose.label)}
+                      title="Trigger medication reminder alarm for this dose now"
+                      className="p-2 rounded-xl text-amber-700 hover:text-amber-950 hover:bg-amber-100 border border-yellow-200 transition-colors cursor-pointer"
+                    >
+                      <Volume2 className="w-4 h-4" />
+                    </button>
+
                     {dose.status === 'taken' ? (
                       <div className="flex items-center space-x-2">
                         <span className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-900 text-xs font-bold border border-emerald-300">
