@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Phone, PhoneOff, Mic, MicOff, Volume2, ShieldAlert, X } from 'lucide-react';
 import { UserProfile } from '../types';
+import { useLanguage } from '../context/LanguageContext';
 
 interface CallModalProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ export const CallModal: React.FC<CallModalProps> = ({
   onClose,
   userProfile,
 }) => {
+  const { t } = useLanguage();
   const [callState, setCallState] = useState<'ringing' | 'connected' | 'ended'>('ringing');
   const [callSeconds, setCallSeconds] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
@@ -67,7 +69,8 @@ export const CallModal: React.FC<CallModalProps> = ({
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-white"
+          aria-label={t('close')}
+          className="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
@@ -89,17 +92,17 @@ export const CallModal: React.FC<CallModalProps> = ({
         {/* Call status */}
         <div className="mt-4 py-2 px-4 rounded-full bg-slate-800/80 inline-block text-xs font-semibold">
           {callState === 'ringing' && (
-            <span className="text-yellow-400 animate-pulse">Ringing CareCircle Line...</span>
+            <span className="text-yellow-400 animate-pulse">{t('calling')}...</span>
           )}
           {callState === 'connected' && (
-            <span className="text-emerald-400">Connected • {formatSeconds(callSeconds)}</span>
+            <span className="text-emerald-400">{t('connected')} • {formatSeconds(callSeconds)}</span>
           )}
-          {callState === 'ended' && <span className="text-red-400">Call Ended</span>}
+          {callState === 'ended' && <span className="text-red-400">{t('callEnded')}</span>}
         </div>
 
         {callState === 'connected' && (
           <p className="text-xs text-slate-300 mt-3 bg-slate-800/50 p-2.5 rounded-xl border border-slate-700">
-            "{userProfile.role === 'elderly' ? 'Hi Grandpa! I see your call. Did you need help with your medicine?' : 'Hello! Grandpa here, I hear you loud and clear!'}"
+            "{userProfile.role === 'elderly' ? 'CareCircle: Audio channel active. Help is connected.' : 'CareCircle: Senior connected.'}"
           </p>
         )}
 
@@ -108,7 +111,8 @@ export const CallModal: React.FC<CallModalProps> = ({
           <button
             type="button"
             onClick={() => setIsMuted(!isMuted)}
-            className={`p-3.5 rounded-full border transition-all ${
+            title={isMuted ? t('unmute') : t('mute')}
+            className={`p-3.5 rounded-full border transition-all cursor-pointer ${
               isMuted
                 ? 'bg-red-500/20 border-red-500 text-red-400'
                 : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
@@ -122,14 +126,16 @@ export const CallModal: React.FC<CallModalProps> = ({
             type="button"
             id="btn-end-call"
             onClick={handleEndCall}
-            className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center shadow-lg shadow-red-600/40 transition-transform active:scale-95"
+            title={t('endCall')}
+            className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center shadow-lg shadow-red-600/40 transition-transform active:scale-95 cursor-pointer"
           >
             <PhoneOff className="w-7 h-7" />
           </button>
 
           <button
             type="button"
-            className="p-3.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700"
+            title={t('speaker')}
+            className="p-3.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 cursor-pointer"
           >
             <Volume2 className="w-5 h-5" />
           </button>

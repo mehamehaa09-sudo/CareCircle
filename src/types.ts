@@ -1,3 +1,12 @@
+export type LanguageCode = 'en' | 'ta' | 'hi' | 'ml';
+
+export interface LanguageInfo {
+  code: LanguageCode;
+  nativeName: string;
+  englishName: string;
+  flagEmoji?: string;
+}
+
 export type MedicineForm = 'tablet' | 'capsule' | 'syrup' | 'injection' | 'drops' | 'inhaler' | 'other';
 
 export type FoodInstruction = 'after_food' | 'before_food' | 'with_food' | 'empty_stomach' | 'anytime';
@@ -96,4 +105,36 @@ export interface CaretakerNudge {
   sentAt?: number;
   medicationName?: string;
   acknowledged?: boolean;
+}
+
+export type WellnessSeverity = 'low' | 'medium' | 'high';
+export interface WellnessCheckin {
+  id: string; date: string; createdAt: string; questionId: string;
+  checkinSlot?: 'morning' | 'afternoon' | 'evening';
+  question: string; response: string; symptoms: string[]; severity: WellnessSeverity;
+}
+export interface WellnessPatternAlert { id: string; symptom: string; occurrences: number; firstReportedOn: string; latestReportedOn: string; severity: WellnessSeverity; }
+
+export interface VoiceAssistantAction {
+  type: 'mark_taken' | 'call_caretaker' | 'call_senior' | 'read_schedule' | 'none';
+  medicationName?: string;
+  doseTime?: string;
+  confirmationMessage?: string;
+}
+
+export interface VoiceAssistantCitation {
+  id: number;
+  source: string;
+  document?: string;
+  page?: number | null;
+  section?: string | null;
+}
+
+export interface VoiceChatMessage {
+  id: string;
+  sender: 'user' | 'assistant';
+  text: string;
+  action?: VoiceAssistantAction;
+  citations?: VoiceAssistantCitation[];
+  timestamp: number;
 }

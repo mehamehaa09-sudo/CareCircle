@@ -1,4 +1,4 @@
-import { Medication, DoseLog, AudioSettings } from '../types';
+import { Medication, DoseLog, AudioSettings, WellnessCheckin } from '../types';
 import { formatDateToISO, addDaysToISO } from './dateUtils';
 
 const MEDS_KEY = 'med_planner_medications_v1';
@@ -140,6 +140,7 @@ export function saveAudioSettings(settings: AudioSettings): void {
 const PROFILE_KEY = 'carecircle_current_user_v1';
 const NUDGES_KEY = 'carecircle_nudges_v1';
 const DISMISSED_ALERTS_KEY = 'carecircle_dismissed_alerts_v1';
+const WELLNESS_CHECKINS_KEY = 'carecircle_wellness_checkins_v1';
 
 export const defaultElderlyProfile: import('../types').UserProfile = {
   id: 'user-elderly-1',
@@ -225,3 +226,5 @@ export function saveDismissedAlertIds(ids: string[]): void {
   }
 }
 
+export function loadWellnessCheckins(): WellnessCheckin[] { try { const raw = localStorage.getItem(WELLNESS_CHECKINS_KEY); const parsed = raw && JSON.parse(raw); return Array.isArray(parsed) ? parsed : []; } catch { return []; } }
+export function saveWellnessCheckins(checkins: WellnessCheckin[]): void { try { localStorage.setItem(WELLNESS_CHECKINS_KEY, JSON.stringify(checkins)); } catch (e) { console.error('Failed to save wellness check-ins:', e); } }

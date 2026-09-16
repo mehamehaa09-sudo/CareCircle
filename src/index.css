@@ -37,3 +37,17 @@
 .animate-pulse-subtle {
   animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+@keyframes mascot-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.poppy-guide { position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 40; display: flex; flex-direction: column; align-items: end; gap: .6rem; max-width: calc(100vw - 2rem); }
+.poppy-chat { width: min(25rem, calc(100vw - 2rem)); position: relative; padding: 1rem; border: 2px solid #99f6e4; border-radius: 1.4rem; background: linear-gradient(135deg,#f0fdfa,#fff); box-shadow: 0 18px 45px rgba(13,148,136,.22); }
+.poppy-close { position:absolute; right:.6rem; top:.6rem; color:#64748b; }
+.mascot-orbit { position:relative; width:4.5rem; height:4.5rem; animation: mascot-float 3s ease-in-out infinite; }
+.mascot-orbit img { width:100%; height:100%; object-fit:contain; }
+.mascot-orbit-small { width:3rem; height:3rem; flex:0 0 auto; }
+.mascot-heart { position:absolute; bottom:0; right:0; display:grid; place-items:center; width:1.4rem; height:1.4rem; border:2px solid white; border-radius:999px; background:#fb7185; color:white; font-size:.7rem; }
+.wellness-name { display:inline-flex; align-items:center; gap:.35rem; padding:.25rem .55rem; border-radius:999px; background:#ccfbf1; color:#115e59; font-size:.72rem; font-weight:800; }
+.wellness-input { min-width:0; flex:1; border:1px solid #99f6e4; border-radius:.9rem; padding:.75rem 1rem; background:white; outline:none; }
+.wellness-submit { display:grid; place-items:center; border-radius:.9rem; padding:.75rem 1rem; background:#0f766e; color:white; font-weight:800; }.wellness-submit:disabled{opacity:.55}
+.poppy-launcher { display:flex; align-items:center; gap:.5rem; padding:.35rem .8rem .35rem .35rem; border:2px solid #fcd34d; border-radius:999px; background:#fff; color:#78350f; font-weight:800; box-shadow:0 10px 24px rgba(146,64,14,.18); }
+.poppy-label,.poppy-speech { display:flex; align-items:center; gap:.3rem; }.poppy-speech { padding:.6rem .8rem; border:1px solid #fde68a; border-radius:1rem; background:white; color:#475569; font-size:.78rem; font-weight:700; box-shadow:0 7px 18px rgba(120,53,15,.1); }

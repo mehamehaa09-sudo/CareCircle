@@ -1,0 +1,6 @@
+{
+  "name": "CareCircle",
+  "description": "Connected medication planner connecting elderly individuals with their caretakers, featuring butter-yellow aesthetic, scheduled reminders, and missed dose alerts.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
